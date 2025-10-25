@@ -128,12 +128,14 @@ const NoteViewPage = () => {
               <TagIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               <div className="flex flex-wrap gap-2">
                 {currentNote.tags.map((tag, index) => (
-                  <span 
-                    key={index} 
-                    className="inline-block bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm px-3 py-1 rounded-full"
+                  <Link
+                    key={index}
+                    to={`/dashboard?tag=${encodeURIComponent(tag)}`}
+                    className="inline-block bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm px-3 py-1 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                    title={`View all notes with "${tag}"`}
                   >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>
