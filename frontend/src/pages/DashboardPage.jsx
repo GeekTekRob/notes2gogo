@@ -58,8 +58,8 @@ const DashboardPage = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Notes</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             {pagination.total} notes total
           </p>
         </div>
@@ -72,7 +72,7 @@ const DashboardPage = () => {
       {/* Search and Filters */}
       <div className="card mb-6">
         <div className="relative">
-          <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search notes (title, tags, content)..."
@@ -83,7 +83,7 @@ const DashboardPage = () => {
           {searchInput && (
             <button
               onClick={() => setSearchInput('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               title="Clear search"
             >
               ✕
@@ -95,18 +95,18 @@ const DashboardPage = () => {
       {/* Notes Grid */}
       {isLoading ? (
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading notes...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
+          <p className="text-gray-600 dark:text-gray-400 mt-4">Loading notes...</p>
         </div>
       ) : notes.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-400 mb-4">
+          <div className="text-gray-400 dark:text-gray-600 mb-4">
             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No notes yet</h3>
-          <p className="text-gray-600 mb-6">Get started by creating your first note.</p>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No notes yet</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Get started by creating your first note.</p>
           <Link to="/notes/new" className="btn btn-primary inline-flex items-center whitespace-nowrap">
             <PlusIcon className="h-5 w-5 mr-2" />
             Create Your First Note
@@ -118,19 +118,25 @@ const DashboardPage = () => {
             {notes.map((note) => (
               <div key={note.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate flex-1">
+                  <Link 
+                    to={`/notes/${note.id}`}
+                    className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 truncate flex-1 transition-colors cursor-pointer"
+                    title="View note"
+                  >
                     {note.title}
-                  </h3>
-                  <div className="flex space-x-2 ml-2">
+                  </Link>
+                  <div className="flex space-x-2 ml-2 flex-shrink-0">
                     <Link
                       to={`/notes/${note.id}/edit`}
-                      className="p-1 text-gray-400 hover:text-primary-600 transition-colors"
+                      className="p-1 text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      title="Edit note"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </Link>
                     <button
                       onClick={() => handleDelete(note.id)}
-                      className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      title="Delete note"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -140,14 +146,14 @@ const DashboardPage = () => {
                 <div className="mb-3">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     note.note_type === 'text' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                   }`}>
                     {note.note_type === 'text' ? 'Text' : 'Structured'}
                   </span>
                 </div>
 
-                <div className="prose text-sm text-gray-600 mb-4 line-clamp-3">
+                <div className="prose text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
                   {note.note_type === 'text' 
                     ? note.content?.substring(0, 150) + (note.content?.length > 150 ? '...' : '')
                     : `${Object.keys(note.content || {}).length} sections`
@@ -156,21 +162,21 @@ const DashboardPage = () => {
 
                 {note.tags && note.tags.length > 0 && (
                   <div className="flex items-center space-x-1 mb-3">
-                    <TagIcon className="h-4 w-4 text-gray-400" />
+                    <TagIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                     <div className="flex flex-wrap gap-1">
                       {note.tags.slice(0, 3).map((tag, index) => (
-                        <span key={index} className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                        <span key={index} className="inline-block bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2 py-1 rounded">
                           {tag}
                         </span>
                       ))}
                       {note.tags.length > 3 && (
-                        <span className="text-xs text-gray-500">+{note.tags.length - 3} more</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">+{note.tags.length - 3} more</span>
                       )}
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center text-xs text-gray-500">
+                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                   <CalendarIcon className="h-4 w-4 mr-1" />
                   Updated {format(new Date(note.updated_at), 'MMM d, yyyy')}
                 </div>
@@ -188,7 +194,7 @@ const DashboardPage = () => {
               >
                 Previous
               </button>
-              <span className="px-4 py-2 text-gray-700">
+              <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
                 Page {pagination.page} of {Math.ceil(pagination.total / pagination.per_page)}
               </span>
               <button
