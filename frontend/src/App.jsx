@@ -10,6 +10,7 @@ import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import NoteEditorPage from './pages/NoteEditorPage'
 import NoteViewPage from './pages/NoteViewPage'
+import TagManagePage from './pages/TagManagePage'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -57,6 +58,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <NoteEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tags/manage"
+            element={
+              <ProtectedRoute>
+                <TagManagePage />
               </ProtectedRoute>
             }
           />

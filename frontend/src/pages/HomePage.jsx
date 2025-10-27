@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { 
   DocumentTextIcon, 
@@ -11,6 +11,11 @@ import {
 
 const HomePage = () => {
   const { isAuthenticated } = useAuthStore()
+
+  // If user is already authenticated, send them straight to the dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   const features = [
     {
@@ -58,25 +63,14 @@ const HomePage = () => {
           Create simple text notes or complex structured content with rich formatting.
         </p>
         
-        {!isAuthenticated ? (
-          <div className="flex justify-center space-x-4">
-            <Link to="/register" className="btn btn-primary text-lg px-8 py-3">
-              Get Started Free
-            </Link>
-            <Link to="/login" className="btn btn-secondary text-lg px-8 py-3">
-              Sign In
-            </Link>
-          </div>
-        ) : (
-          <div className="flex justify-center space-x-4">
-            <Link to="/dashboard" className="btn btn-primary text-lg px-8 py-3">
-              Go to Dashboard
-            </Link>
-            <Link to="/notes/new" className="btn btn-secondary text-lg px-8 py-3">
-              Create Note
-            </Link>
-          </div>
-        )}
+        <div className="flex justify-center space-x-4">
+          <Link to="/register" className="btn btn-primary text-lg px-8 py-3">
+            Get Started Free
+          </Link>
+          <Link to="/login" className="btn btn-secondary text-lg px-8 py-3">
+            Sign In
+          </Link>
+        </div>
       </div>
 
       {/* Features Section */}
@@ -111,11 +105,9 @@ const HomePage = () => {
           Join thousands of users who trust Notes2GoGo for their note-taking needs.
         </p>
         
-        {!isAuthenticated && (
-          <Link to="/register" className="btn btn-primary text-lg px-8 py-3">
-            Start Taking Notes Today
-          </Link>
-        )}
+        <Link to="/register" className="btn btn-primary text-lg px-8 py-3">
+          Start Taking Notes Today
+        </Link>
       </div>
     </div>
   )

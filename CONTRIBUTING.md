@@ -22,9 +22,9 @@ By participating in this project, you agree to maintain a respectful and inclusi
    ```
 
 2. **Start the development environment**
-   ```bash
-   docker-compose up -d
-   ```
+  ```bash
+  docker compose up -d
+  ```
 
 3. **Access the services**
    - Frontend: http://localhost
@@ -48,7 +48,7 @@ git checkout -b fix/your-bug-fix
 - Update/create Pydantic schemas for new endpoints
 - Create database migrations if schema changes:
   ```bash
-  docker-compose exec backend alembic revision --autogenerate -m "Description"
+  docker compose exec backend alembic revision --autogenerate -m "Description"
   ```
 
 #### Frontend Development
@@ -62,7 +62,7 @@ git checkout -b fix/your-bug-fix
 
 #### Backend Tests
 ```bash
-docker-compose exec backend pytest
+docker compose exec backend pytest
 ```
 
 #### Manual Testing

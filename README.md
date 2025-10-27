@@ -12,17 +12,25 @@ A lightweight, scalable, open-source notes service with a visual UI, flexible AP
 - **Structured Note Editor**: Clean, card-based layout for section management with intuitive controls
 - **RESTful API**: Complete FastAPI backend with auto-generated documentation
 - **PostgreSQL Storage**: Robust database with JSONB support for flexible content
-- **Docker Ready**: One-command deployment with docker-compose
-- **Tag System**: Organize notes with custom tags
+- **Docker Ready**: One-command deployment with Docker Compose
 - **Modern Stack**: Python 3.11+, React 18, PostgreSQL 15
 - **Debounced Search**: Efficient search with automatic debouncing to reduce server load
 
-## � Future Features Roadmap
+### 🏷️ Complete Tag System
+- **Tag Management**: Create, rename, delete, and merge tags
+- **Smart Autocomplete**: Tag suggestions as you type with real-time filtering
+- **Advanced Filtering**: Filter notes by tags using AND/OR logic, or exclude specific tags
+- **Bulk Operations**: Apply or remove tags from multiple notes at once
+- **Tag Browser**: Sidebar showing all tags with note counts
+- **Clickable Tags**: Click any tag to instantly filter notes
+- **Visual Feedback**: Tag chips on note cards for quick identification
+
+## 🧭 Future Features Roadmap
 
 Building Notes2GoGo into a truly universal note-taking application with accessibility-first design. Development is planned in four phases:
 
 ### Phase 1: Quick Wins (Core Enhancements)
-- **Tags System**: Complete tag creation, management, and filtering
+- **✅ Tags System**: Complete tag creation, management, and filtering (COMPLETED)
 - **Improved Search**: Full-text search across all note content with advanced filters
 - **Keyboard Shortcuts**: Essential shortcuts for note creation, saving, and navigation
 - **Export Functionality**: Export notes as PDF and Markdown formats
@@ -51,7 +59,7 @@ Building Notes2GoGo into a truly universal note-taking application with accessib
 
 Each phase builds upon the previous one, ensuring a stable and progressively enhanced user experience while maintaining our commitment to accessibility and universal design principles.
 
-## �🚀 Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -66,17 +74,28 @@ Each phase builds upon the previous one, ensuring a stable and progressively enh
    cd notes2gogo
    ```
 
-2. **Start the application**
+2. **Start the application (minimal)**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
+   Notes:
+   - The backend automatically runs database migrations on startup.
+   - Legacy helper scripts (start.ps1, setup-tag-system.ps1, TAG_SYSTEM_DEPLOYMENT.md) were removed.
 
 3. **Access the application**
-   - Frontend: http://localhost
+   - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - API Documentation: http://localhost:8000/docs
 
 That's it! The application will be running with a PostgreSQL database, FastAPI backend, and React frontend.
+
+Optional: migrating legacy tag data
+
+If you're upgrading from a version that stored tags in `tags_array`, run the one-time migration:
+
+```bash
+docker compose run --rm backend python migrate_tags_data.py
+```
 
 ## 🏗️ Architecture
 
@@ -103,7 +122,62 @@ That's it! The application will be running with a PostgreSQL database, FastAPI b
 ### Database Schema
 - **Users**: Authentication and profile data
 - **Notes**: Flexible content storage with JSONB for structured notes
+- **Tags**: Organized tag system with many-to-many relationships
+- **Note Tags**: Association table linking notes to tags
 - **Support**: Both simple text (Markdown) and structured (key-value) notes
+
+## 🏷️ Using the Tag System
+
+### Creating Tags
+- **In Note Editor**: Use the tag input field with autocomplete - start typing and select from existing tags or create new ones
+- **Press Enter, Comma, or Space**: To add a tag
+- **Backspace**: Remove the last tag when input is empty
+
+### Managing Tags
+- **Tag Browser**: View all your tags with note counts in the sidebar on the dashboard
+- **Rename**: Click the pencil icon next to any tag to rename it across all notes
+- **Delete**: Click the trash icon to remove a tag from your system (notes remain intact)
+- **Merge**: Combine duplicate or similar tags using the API endpoint
+
+### Filtering with Tags
+- **Click a Tag**: In the tag browser or on any note card to filter by that tag
+- **Multi-Tag Filtering**: Use the API with `tag_filter_mode` parameter:
+  - `and`: Notes must have ALL specified tags
+  - `or`: Notes must have AT LEAST ONE of the specified tags
+- **Exclude Tags**: Filter out notes with specific tags using the `exclude_tags` parameter
+
+### Bulk Tag Operations
+Use the `/api/notes/bulk-tag` endpoint to:
+- **Add** tags to multiple notes at once
+- **Remove** tags from multiple notes
+- **Replace** all tags on selected notes
+
+### API Examples
+
+**Get all tags:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8000/api/tags/
+```
+
+**Filter notes by tag (AND logic):**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:8000/api/notes/?tags=work,urgent&tag_filter_mode=and"
+```
+
+**Exclude notes with specific tags:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:8000/api/notes/?exclude_tags=archive,draft"
+```
+
+**Bulk add tags to notes:**
+```bash
+curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"note_ids":[1,2,3],"tag_names":["important"],"operation":"add"}' \
+  http://localhost:8000/api/notes/bulk-tag
+```
 
 ## 📚 API Documentation
 
@@ -121,10 +195,21 @@ That's it! The application will be running with a PostgreSQL database, FastAPI b
     - `search`: Search in title, tags, and content (both text and structured)
     - `note_type`: Filter by note type ('text' or 'structured')
     - `tags`: Filter by tags (comma-separated)
+    - `tag_filter_mode`: Tag filter logic ('and', 'or', 'exclude')
+    - `exclude_tags`: Exclude notes with these tags (comma-separated)
 - `POST /api/notes/` - Create new note
 - `GET /api/notes/{id}` - Get specific note
 - `PUT /api/notes/{id}` - Update note
 - `DELETE /api/notes/{id}` - Delete note
+- `POST /api/notes/bulk-tag` - Bulk tag operations on multiple notes
+
+### Tags Endpoints
+- `GET /api/tags/` - List all tags with note counts
+- `POST /api/tags/` - Create new tag
+- `PUT /api/tags/{id}` - Rename tag
+- `DELETE /api/tags/{id}` - Delete tag
+- `POST /api/tags/merge` - Merge two tags
+- `GET /api/tags/autocomplete` - Get tag suggestions (query param: `q`)
 
 ### Note Types
 
@@ -255,11 +340,12 @@ npm run test:e2e
 
 ## 📦 Deployment
 
-### Production Docker Compose
-```bash
-# Use production environment
-docker-compose -f docker-compose.prod.yml up -d
-```
+### Production
+Use your preferred hosting. The provided docker-compose.yml is geared for local development. For production:
+- Build and push your own images
+- Configure environment variables and secrets securely
+- Place a reverse proxy (nginx/Traefik) in front of the backend
+- Serve the frontend via a CDN or static hosting
 
 ### Manual Deployment
 1. Build frontend: `npm run build`
@@ -305,7 +391,7 @@ notes2gogo/
 │   │   └── store/          # State management
 │   └── package.json        # Node dependencies
 ├── docker-compose.yml      # Development setup
-└── README.md              # This file
+└── README.md               # This file
 ```
 
 ## 🐛 Known Issues
