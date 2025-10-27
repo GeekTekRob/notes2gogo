@@ -78,9 +78,26 @@ class NoteResponse(NoteBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+    tags: list[str] = Field(default_factory=list, description="List of tag names associated with this note")
     
     # Pydantic v2: enable model creation from ORM objects (from_attributes)
     model_config = {"from_attributes": True}
+    
+    @classmethod
+    def from_orm_with_tags(cls, db_note):
+        """Create response with tag names from Tag objects."""
+        tag_names = [tag.name for tag in db_note.tags] if hasattr(db_note, 'tags') and db_note.tags else []
+        note_dict = {
+            'id': db_note.id,
+            'title': db_note.title,
+            'note_type': db_note.note_type,
+            'content': db_note.content,
+            'tags': tag_names,
+            'user_id': db_note.user_id,
+            'created_at': db_note.created_at,
+            'updated_at': db_note.updated_at
+        }
+        return cls(**note_dict)
 
 
 class NoteListResponse(BaseModel):
@@ -91,3 +108,65 @@ class NoteListResponse(BaseModel):
     per_page: int
     has_next: bool
     has_prev: bool
+
+
+# Tag Schemas
+class TagBase(BaseModel):
+    """Base tag schema."""
+    name: str = Field(..., min_length=1, max_length=100, example="work")
+
+
+class TagCreate(TagBase):
+    """Schema for tag creation."""
+    pass
+
+
+class TagUpdate(BaseModel):
+    """Schema for tag update."""
+    name: str = Field(..., min_length=1, max_length=100, example="personal")
+
+
+class TagResponse(TagBase):
+    """Schema for tag response."""
+    id: int
+    user_id: int
+    created_at: datetime
+    note_count: int = Field(default=0, description="Number of notes with this tag")
+    
+    # Pydantic v2: enable model creation from ORM objects (from_attributes)
+    model_config = {"from_attributes": True}
+
+
+class TagMerge(BaseModel):
+    """Schema for merging tags."""
+    source_tag_id: int = Field(..., description="ID of the tag to merge from")
+    target_tag_id: int = Field(..., description="ID of the tag to merge into")
+
+
+class TagListResponse(BaseModel):
+    """Schema for tag list response."""
+    tags: list[TagResponse]
+    total: int
+
+
+class BulkTagOperation(BaseModel):
+    """Schema for bulk tag operations on multiple notes."""
+    note_ids: list[int] = Field(..., min_items=1, description="List of note IDs")
+    tag_names: list[str] = Field(..., min_items=1, description="List of tag names")
+    operation: str = Field(..., description="Operation: 'add', 'remove', or 'replace'")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "note_ids": [1, 2, 3],
+                "tag_names": ["work", "urgent"],
+                "operation": "add"
+            }
+        }
+
+
+class TagFilterMode(str, Enum):
+    """Enumeration for tag filter modes."""
+    AND = "and"
+    OR = "or"
+    EXCLUDE = "exclude"

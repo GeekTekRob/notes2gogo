@@ -1,10 +1,20 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Enum as SQLEnum, Table
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
 from app.schemas import NoteType
+
+
+# Association table for many-to-many relationship between notes and tags
+note_tags = Table(
+    'note_tags',
+    Base.metadata,
+    Column('note_id', Integer, ForeignKey('notes.id', ondelete='CASCADE'), primary_key=True),
+    Column('tag_id', Integer, ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True),
+    Column('created_at', DateTime(timezone=True), server_default=func.now(), nullable=False)
+)
 
 
 class User(Base):
@@ -19,8 +29,31 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
-    # Relationship with notes
+    # Relationships
     notes = relationship("Note", back_populates="owner", cascade="all, delete-orphan")
+    tags = relationship("Tag", back_populates="owner", cascade="all, delete-orphan")
+
+
+class Tag(Base):
+    """Tag model for organizing notes."""
+    __tablename__ = "tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    owner = relationship("User", back_populates="tags")
+    notes = relationship("Note", secondary=note_tags, back_populates="tags")
+    
+    # Unique constraint: user can't have duplicate tag names
+    __table_args__ = (
+        {'schema': None},
+    )
+    
+    def __repr__(self):
+        return f"<Tag(id={self.id}, name='{self.name}', user_id={self.user_id})>"
 
 
 class Note(Base):
@@ -35,7 +68,8 @@ class Note(Base):
     content_text = Column(Text, nullable=True)  # For TEXT type notes
     content_structured = Column(JSONB, nullable=True)  # For STRUCTURED type notes
     
-    tags = Column(ARRAY(String), nullable=True)
+    # Legacy tags array - keeping for backwards compatibility during migration
+    tags_array = Column(ARRAY(String), nullable=True)
     
     # Foreign key to user
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -44,8 +78,9 @@ class Note(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
-    # Relationship with user
+    # Relationships
     owner = relationship("User", back_populates="notes")
+    tags = relationship("Tag", secondary=note_tags, back_populates="notes")
     
     @property
     def content(self):

@@ -88,9 +88,11 @@ async def health_check():
 # Import and include routers
 from app.api.auth import router as auth_router
 from app.api.notes import router as notes_router
+from app.api.tags import router as tags_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(notes_router, prefix="/api/notes", tags=["Notes"])
+app.include_router(tags_router, prefix="/api/tags", tags=["Tags"])
 
 
 if __name__ == "__main__":

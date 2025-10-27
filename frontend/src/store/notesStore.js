@@ -17,6 +17,8 @@ export const useNotesStore = create((set, get) => ({
     search: '',
     note_type: null,
     tags: '',
+    tag_filter_mode: 'or',
+    exclude_tags: '',
   },
 
   setFilters: (newFilters) => {

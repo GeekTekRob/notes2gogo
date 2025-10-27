@@ -1,10 +1,13 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, or_, cast, String
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import desc, or_, cast, String, and_, not_
 from app.core.database import get_db
-from app.models import Note, User
-from app.schemas import NoteCreate, NoteUpdate, NoteResponse, NoteListResponse, NoteType
+from app.models import Note, User, Tag
+from app.schemas import (
+    NoteCreate, NoteUpdate, NoteResponse, NoteListResponse, NoteType,
+    BulkTagOperation, TagFilterMode
+)
 from app.api.auth import get_current_user
 
 router = APIRouter()
@@ -16,12 +19,11 @@ async def create_note(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Create a new note."""
+    """Create a new note with tags."""
     # Create note instance
     db_note = Note(
         title=note_data.title,
         note_type=note_data.note_type,
-        tags=note_data.tags,
         user_id=current_user.id
     )
     
@@ -41,11 +43,30 @@ async def create_note(
             )
         db_note.content_structured = note_data.content
     
+    # Handle tags
+    if note_data.tags:
+        for tag_name in note_data.tags:
+            tag_name = tag_name.strip().lower()
+            if not tag_name:
+                continue
+                
+            # Get or create tag
+            tag = db.query(Tag).filter(
+                Tag.user_id == current_user.id,
+                Tag.name == tag_name
+            ).first()
+            
+            if not tag:
+                tag = Tag(name=tag_name, user_id=current_user.id)
+                db.add(tag)
+            
+            db_note.tags.append(tag)
+    
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
     
-    return db_note
+    return NoteResponse.from_orm_with_tags(db_note)
 
 
 @router.get("/", response_model=NoteListResponse)
@@ -55,46 +76,61 @@ async def get_notes(
     search: Optional[str] = Query(None, description="Search in title and content"),
     note_type: Optional[NoteType] = Query(None, description="Filter by note type"),
     tags: Optional[str] = Query(None, description="Filter by tags (comma-separated)"),
+    tag_filter_mode: TagFilterMode = Query(TagFilterMode.AND, description="Tag filter mode: 'and', 'or', or 'exclude'"),
+    exclude_tags: Optional[str] = Query(None, description="Exclude notes with these tags (comma-separated)"),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)  # Will uncomment after fixing imports
+    current_user: User = Depends(get_current_user)
 ):
-    """Get paginated list of user's notes with optional filtering."""
-    # For now, we'll use a placeholder user_id
-    # TODO: Replace with actual current_user.id
-    user_id = 1
+    """Get paginated list of user's notes with advanced filtering."""
+    # Base query with eager loading of tags
+    query = db.query(Note).options(joinedload(Note.tags)).filter(Note.user_id == current_user.id)
     
-    # Base query
-    query = db.query(Note).filter(Note.user_id == user_id)
-    
-    # Apply filters
+    # Apply note type filter
     if note_type:
         query = query.filter(Note.note_type == note_type)
     
+    # Apply text search
     if search:
         search_filter = f"%{search}%"
-        # Create OR conditions for search across multiple fields
         search_conditions = [
-            Note.title.ilike(search_filter),  # Search in title
-            Note.content_text.ilike(search_filter),  # Search in text content
+            Note.title.ilike(search_filter),
+            Note.content_text.ilike(search_filter),
+            cast(Note.content_structured, String).ilike(search_filter)
         ]
         
-        # Search in tags array (convert array to text for searching)
-        search_conditions.append(
-            cast(Note.tags, String).ilike(search_filter)
-        )
-        
-        # Search in structured content (JSONB) - convert to text and search
-        # This will search in both keys and values of the JSONB structure
-        search_conditions.append(
-            cast(Note.content_structured, String).ilike(search_filter)
-        )
-        
-        query = query.filter(or_(*search_conditions))
+        # Also search in tag names
+        query = query.outerjoin(Note.tags).filter(
+            or_(
+                *search_conditions,
+                Tag.name.ilike(search_filter)
+            )
+        ).distinct()
     
+    # Apply tag filters
     if tags:
-        tag_list = [tag.strip() for tag in tags.split(",")]
-        for tag in tag_list:
-            query = query.filter(Note.tags.contains([tag]))
+        tag_list = [tag.strip().lower() for tag in tags.split(",") if tag.strip()]
+        
+        if tag_list:
+            if tag_filter_mode == TagFilterMode.AND:
+                # Notes must have ALL specified tags
+                for tag_name in tag_list:
+                    query = query.join(Note.tags).filter(Tag.name == tag_name)
+            elif tag_filter_mode == TagFilterMode.OR:
+                # Notes must have AT LEAST ONE of the specified tags
+                query = query.join(Note.tags).filter(Tag.name.in_(tag_list)).distinct()
+    
+    # Apply exclude tags filter
+    if exclude_tags:
+        exclude_tag_list = [tag.strip().lower() for tag in exclude_tags.split(",") if tag.strip()]
+        
+        if exclude_tag_list:
+            # Subquery to find notes with excluded tags
+            excluded_note_ids = db.query(Note.id).join(Note.tags).filter(
+                Note.user_id == current_user.id,
+                Tag.name.in_(exclude_tag_list)
+            ).distinct().subquery()
+            
+            query = query.filter(not_(Note.id.in_(excluded_note_ids)))
     
     # Get total count
     total = query.count()
@@ -102,12 +138,15 @@ async def get_notes(
     # Apply pagination and ordering
     notes = query.order_by(desc(Note.updated_at)).offset((page - 1) * per_page).limit(per_page).all()
     
+    # Convert to response format with tags
+    note_responses = [NoteResponse.from_orm_with_tags(note) for note in notes]
+    
     # Calculate pagination info
     has_next = (page * per_page) < total
     has_prev = page > 1
     
     return NoteListResponse(
-        notes=notes,
+        notes=note_responses,
         total=total,
         page=page,
         per_page=per_page,
@@ -120,16 +159,12 @@ async def get_notes(
 async def get_note(
     note_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)  # Will uncomment after fixing imports
+    current_user: User = Depends(get_current_user)
 ):
     """Get a specific note by ID."""
-    # For now, we'll use a placeholder user_id
-    # TODO: Replace with actual current_user.id
-    user_id = 1
-    
-    note = db.query(Note).filter(
+    note = db.query(Note).options(joinedload(Note.tags)).filter(
         Note.id == note_id,
-        Note.user_id == user_id
+        Note.user_id == current_user.id
     ).first()
     
     if not note:
@@ -138,7 +173,7 @@ async def get_note(
             detail="Note not found"
         )
     
-    return note
+    return NoteResponse.from_orm_with_tags(note)
 
 
 @router.put("/{note_id}", response_model=NoteResponse)
@@ -146,16 +181,12 @@ async def update_note(
     note_id: int,
     note_update: NoteUpdate,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)  # Will uncomment after fixing imports
+    current_user: User = Depends(get_current_user)
 ):
     """Update a specific note."""
-    # For now, we'll use a placeholder user_id
-    # TODO: Replace with actual current_user.id
-    user_id = 1
-    
-    note = db.query(Note).filter(
+    note = db.query(Note).options(joinedload(Note.tags)).filter(
         Note.id == note_id,
-        Note.user_id == user_id
+        Note.user_id == current_user.id
     ).first()
     
     if not note:
@@ -193,29 +224,45 @@ async def update_note(
                 # Reset content fields - user will need to update content separately
                 note.content_text = None
                 note.content_structured = None
+        elif field == "tags":
+            # Update tags
+            note.tags.clear()
+            if value:
+                for tag_name in value:
+                    tag_name = tag_name.strip().lower()
+                    if not tag_name:
+                        continue
+                    
+                    # Get or create tag
+                    tag = db.query(Tag).filter(
+                        Tag.user_id == current_user.id,
+                        Tag.name == tag_name
+                    ).first()
+                    
+                    if not tag:
+                        tag = Tag(name=tag_name, user_id=current_user.id)
+                        db.add(tag)
+                    
+                    note.tags.append(tag)
         else:
             setattr(note, field, value)
     
     db.commit()
     db.refresh(note)
     
-    return note
+    return NoteResponse.from_orm_with_tags(note)
 
 
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_note(
     note_id: int,
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)  # Will uncomment after fixing imports
+    current_user: User = Depends(get_current_user)
 ):
     """Delete a specific note."""
-    # For now, we'll use a placeholder user_id
-    # TODO: Replace with actual current_user.id
-    user_id = 1
-    
     note = db.query(Note).filter(
         Note.id == note_id,
-        Note.user_id == user_id
+        Note.user_id == current_user.id
     ).first()
     
     if not note:
@@ -228,3 +275,88 @@ async def delete_note(
     db.commit()
     
     return None
+
+
+@router.post("/bulk-tag", response_model=dict)
+async def bulk_tag_operation(
+    operation_data: BulkTagOperation,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Perform bulk tag operations on multiple notes.
+    Operations: 'add', 'remove', or 'replace'
+    """
+    # Validate operation
+    if operation_data.operation not in ['add', 'remove', 'replace']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Operation must be 'add', 'remove', or 'replace'"
+        )
+    
+    # Get all notes
+    notes = db.query(Note).filter(
+        Note.id.in_(operation_data.note_ids),
+        Note.user_id == current_user.id
+    ).all()
+    
+    if len(notes) != len(operation_data.note_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Some notes were not found"
+        )
+    
+    # Normalize tag names
+    tag_names = [tag.strip().lower() for tag in operation_data.tag_names if tag.strip()]
+    
+    if not tag_names:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one valid tag name is required"
+        )
+    
+    # Get or create tags
+    tags = []
+    for tag_name in tag_names:
+        tag = db.query(Tag).filter(
+            Tag.user_id == current_user.id,
+            Tag.name == tag_name
+        ).first()
+        
+        if not tag:
+            tag = Tag(name=tag_name, user_id=current_user.id)
+            db.add(tag)
+        
+        tags.append(tag)
+    
+    # Perform operation on each note
+    updated_count = 0
+    for note in notes:
+        if operation_data.operation == 'add':
+            # Add tags that aren't already on the note
+            for tag in tags:
+                if tag not in note.tags:
+                    note.tags.append(tag)
+                    updated_count += 1
+        
+        elif operation_data.operation == 'remove':
+            # Remove specified tags from the note
+            for tag in tags:
+                if tag in note.tags:
+                    note.tags.remove(tag)
+                    updated_count += 1
+        
+        elif operation_data.operation == 'replace':
+            # Replace all tags with the specified ones
+            note.tags.clear()
+            note.tags.extend(tags)
+            updated_count += 1
+    
+    db.commit()
+    
+    return {
+        "message": f"Bulk tag operation completed",
+        "operation": operation_data.operation,
+        "notes_affected": len(notes),
+        "changes_made": updated_count
+    }

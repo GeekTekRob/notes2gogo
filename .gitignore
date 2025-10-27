@@ -49,6 +49,13 @@ yarn-error.log*
 dist/
 dist-ssr/
 *.local
+.eslintcache
+.parcel-cache/
+.turbo/
+.vite/
+.cache/
+coverage/
+frontend/dist/
 
 # Environment variables
 .env.local
@@ -63,11 +70,16 @@ dist-ssr/
 
 # Docker
 .dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
 
 # Logs
 logs/
 *.log
 pip-log.txt
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
 # Testing
 .coverage
@@ -88,6 +100,7 @@ Thumbs.db
 .DS_Store
 *.bak
 *.tmp
+*.orig
 
 # Jupyter Notebook
 .ipynb_checkpoints

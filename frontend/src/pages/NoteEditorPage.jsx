@@ -5,6 +5,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 import { useNotesStore } from '../store/notesStore'
 import ReactMarkdown from 'react-markdown'
+import TagInput from '../components/TagInput'
 import { 
   EyeIcon, 
   PencilIcon, 
@@ -38,6 +39,7 @@ const NoteEditorPage = () => {
   const [noteType, setNoteType] = useState('text')
   const [previewMode, setPreviewMode] = useState(false)
   const [structuredContent, setStructuredContent] = useState({})
+  const [tags, setTags] = useState([])
 
   const {
     register,
@@ -81,6 +83,7 @@ const NoteEditorPage = () => {
         tags: currentNote.tags ? currentNote.tags.join(', ') : '',
       })
       setNoteType(currentNote.note_type)
+      setTags(currentNote.tags || [])
       if (currentNote.note_type === 'structured') {
         setStructuredContent(currentNote.content || {})
       }
@@ -110,7 +113,7 @@ const NoteEditorPage = () => {
       title: data.title,
       note_type: noteType,
       content: processedContent,
-      tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : [],
+      tags: tags,
     }
 
     let result
@@ -379,19 +382,14 @@ const NoteEditorPage = () => {
 
         {/* Tags */}
         <div className="card">
-          <label htmlFor="tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Tags
           </label>
-          <input
-            {...register('tags')}
-            type="text"
-            id="tags"
-            className="input"
-            placeholder="Enter tags separated by commas (e.g., work, important, project)"
+          <TagInput 
+            tags={tags}
+            onChange={setTags}
+            placeholder="Add tags (e.g., work, important, project)..."
           />
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Separate multiple tags with commas
-          </p>
         </div>
 
         {/* Actions */}

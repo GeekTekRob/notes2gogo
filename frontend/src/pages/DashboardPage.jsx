@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useNotesStore } from '../store/notesStore'
+import TagManager from '../components/TagManager'
 import { 
   PlusIcon, 
   MagnifyingGlassIcon,
@@ -24,16 +25,18 @@ const DashboardPage = () => {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState(filters.search)
-  const [selectedTag, setSelectedTag] = useState(null)
+  const [selectedTags, setSelectedTags] = useState([])
 
   useEffect(() => {
     // Check if there's a tag parameter in the URL
     const tagParam = searchParams.get('tag')
     if (tagParam) {
-      setSelectedTag(tagParam)
-      setSearchInput(tagParam)
-      setFilters({ search: tagParam })
-      // Clear the URL parameter
+      setSelectedTags([tagParam])
+      setFilters({
+        tags: tagParam,
+        tag_filter_mode: 'and',
+        exclude_tags: '',
+      })
       setSearchParams({})
     }
     fetchNotes(1)
@@ -44,7 +47,7 @@ const DashboardPage = () => {
     const delayDebounce = setTimeout(() => {
       setFilters({ search: searchInput })
       fetchNotes(1)
-    }, 300) // Wait 300ms after user stops typing
+    }, 300)
 
     return () => clearTimeout(delayDebounce)
   }, [searchInput, setFilters, fetchNotes])
@@ -65,43 +68,58 @@ const DashboardPage = () => {
   }
 
   const handleTagClick = (tag) => {
-    if (selectedTag === tag) {
-      // Clicking the same tag again removes the filter
-      setSelectedTag(null)
-      setSearchInput('')
-      setFilters({ search: '' })
-      fetchNotes(1)
+    let next = []
+    if (selectedTags.includes(tag)) {
+      next = selectedTags.filter(t => t !== tag)
     } else {
-      // Filter by the clicked tag
-      setSelectedTag(tag)
-      setSearchInput(tag)
-      setFilters({ search: tag })
-      fetchNotes(1)
+      next = [...selectedTags, tag]
     }
+    setSelectedTags(next)
+
+    // Build filters
+    const tagsParam = next.join(',')
+    const filterPayload = { tags: tagsParam, exclude_tags: '', tag_filter_mode: 'or' }
+
+    setFilters(filterPayload)
+    fetchNotes(1)
   }
 
   const clearTagFilter = () => {
-    setSelectedTag(null)
-    setSearchInput('')
-    setFilters({ search: '' })
+    setSelectedTags([])
+  setFilters({ tags: '', exclude_tags: '', tag_filter_mode: 'or' })
     fetchNotes(1)
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {pagination.total} notes total
-          </p>
+    <div className="max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar - Tag Manager */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-4">
+            {/* Minimal: just the tag list; clicking toggles selection (OR behavior) */}
+            <TagManager 
+              onTagClick={handleTagClick} 
+              selectedTags={selectedTags}
+              onChanged={() => fetchNotes(1)} 
+            />
+          </div>
         </div>
-        <Link to="/notes/new" className="btn btn-primary inline-flex items-center whitespace-nowrap">
-          <PlusIcon className="h-5 w-5 mr-2" />
-          New Note
-        </Link>
-      </div>
+
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                {pagination.total} notes total
+              </p>
+            </div>
+            <Link to="/notes/new" className="btn btn-primary inline-flex items-center whitespace-nowrap">
+              <PlusIcon className="h-5 w-5 mr-2" />
+              New Note
+            </Link>
+          </div>
 
       {/* Search and Filters */}
       <div className="card mb-6">
@@ -113,7 +131,11 @@ const DashboardPage = () => {
             value={searchInput}
             onChange={(e) => {
               setSearchInput(e.target.value)
-              if (selectedTag) setSelectedTag(null)
+              if (selectedTags.length > 0) {
+                setSelectedTags([])
+                setFilters({ tags: '', exclude_tags: '', tag_filter_mode: 'or' })
+                fetchNotes(1)
+              }
             }}
             className="input pl-10"
           />
@@ -121,7 +143,7 @@ const DashboardPage = () => {
             <button
               onClick={() => {
                 setSearchInput('')
-                setSelectedTag(null)
+                // leaving selectedTags as-is when clearing search
               }}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               title="Clear search"
@@ -130,19 +152,23 @@ const DashboardPage = () => {
             </button>
           )}
         </div>
-        {selectedTag && (
-          <div className="mt-3 flex items-center space-x-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Filtering by tag:</span>
-            <span className="inline-flex items-center bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 px-3 py-1 rounded-full text-sm font-medium">
-              {selectedTag}
+        {selectedTags.length > 0 && (
+          <div className="mt-3 flex items-center flex-wrap gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Filtering by tags:</span>
+            <div className="flex items-center flex-wrap gap-1">
+              {selectedTags.map((t) => (
+                <span key={t} className="inline-flex items-center bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 px-3 py-1 rounded-full text-sm font-medium">
+                  {t}
+                </span>
+              ))}
               <button
                 onClick={clearTagFilter}
-                className="ml-2 hover:text-primary-900 dark:hover:text-primary-100"
-                title="Remove filter"
+                className="ml-2 text-sm text-primary-700 dark:text-primary-300 hover:underline"
+                title="Clear tag filters"
               >
-                ✕
+                Clear tags
               </button>
-            </span>
+            </div>
           </div>
         )}
       </div>
@@ -224,7 +250,7 @@ const DashboardPage = () => {
                           key={index}
                           onClick={() => handleTagClick(tag)}
                           className={`inline-block text-xs px-2 py-1 rounded transition-colors ${
-                            selectedTag === tag
+                            selectedTags.includes(tag)
                               ? 'bg-primary-500 text-white dark:bg-primary-600'
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300'
                           }`}
@@ -272,6 +298,8 @@ const DashboardPage = () => {
           )}
         </>
       )}
+        </div>
+      </div>
     </div>
   )
 }

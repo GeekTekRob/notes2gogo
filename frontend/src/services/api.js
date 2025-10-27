@@ -32,9 +32,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear auth data and redirect to login
-      localStorage.removeItem('auth-storage')
-      window.location.href = '/login'
+      // Clear auth data and redirect to the public home page
+      try {
+        localStorage.removeItem('auth-storage')
+      } catch {}
+      window.location.href = '/'
     }
     return Promise.reject(error)
   }
@@ -56,6 +58,15 @@ export const notesAPI = {
   createNote: (data) => api.post('/api/notes/', data),
   updateNote: (id, data) => api.put(`/api/notes/${id}`, data),
   deleteNote: (id) => api.delete(`/api/notes/${id}`),
+}
+
+// Tags API
+export const tagsAPI = {
+  list: () => api.get('/api/tags/'),
+  update: (id, data) => api.put(`/api/tags/${id}`, data),
+  remove: (id) => api.delete(`/api/tags/${id}`),
+  merge: (source_tag_id, target_tag_id) => api.post('/api/tags/merge', { source_tag_id, target_tag_id }),
+  autocomplete: (q, limit = 10) => api.get('/api/tags/autocomplete', { params: { q, limit } }),
 }
 
 export default api

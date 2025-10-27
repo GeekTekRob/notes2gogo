@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Delete button in structured notes enlarged for better visibility (h-5 w-5)
 - Frontend port updated to port 80 (http://localhost) instead of 3000
 - Database connection updated to use Docker service name 'db' instead of 'localhost'
+- Documentation updated to use 'docker compose' across README and CONTRIBUTING
+- Frontend URL corrected to http://localhost:3000 in README
+- Removed deprecated helper files: start.ps1, setup-tag-system.ps1, TAG_SYSTEM_DEPLOYMENT.md (repository cleanup)
+- Tightened .gitignore to exclude caches, coverage, and build artifacts
 
 ### Fixed
 - Button text wrapping issues causing broken layouts
