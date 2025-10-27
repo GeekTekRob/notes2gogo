@@ -17,7 +17,41 @@ A lightweight, scalable, open-source notes service with a visual UI, flexible AP
 - **Modern Stack**: Python 3.11+, React 18, PostgreSQL 15
 - **Debounced Search**: Efficient search with automatic debouncing to reduce server load
 
-## 🚀 Quick Start
+## � Future Features Roadmap
+
+Building Notes2GoGo into a truly universal note-taking application with accessibility-first design. Development is planned in four phases:
+
+### Phase 1: Quick Wins (Core Enhancements)
+- **Tags System**: Complete tag creation, management, and filtering
+- **Improved Search**: Full-text search across all note content with advanced filters
+- **Keyboard Shortcuts**: Essential shortcuts for note creation, saving, and navigation
+- **Export Functionality**: Export notes as PDF and Markdown formats
+- **Accessibility Labels**: Enhanced ARIA labels and screen reader support
+
+### Phase 2: Core Features (Essential Functionality)
+- **Image Upload Support**: Attach and display images within notes
+- **Folder Organization**: Hierarchical folder/notebook system for better organization
+- **Full Keyboard Navigation**: Complete keyboard accessibility throughout the application
+- **Theme Customization**: Expanded theme options including high-contrast and custom color schemes
+- **Print Functionality**: Print-friendly views with layout customization
+
+### Phase 3: Advanced Features (Power User Tools)
+- **Real-time Collaboration**: Share notes and collaborate with others in real-time
+- **Drawing/Sketch Support**: Integrated canvas for drawings and handwritten notes
+- **OCR for Image Search**: Search text within images using optical character recognition
+- **Advanced File Attachments**: Support for PDF and audio file attachments
+- **Version History**: Track changes and restore previous versions of notes
+
+### Phase 4: Polish (Professional Experience)
+- **Custom Keyboard Shortcuts**: User-configurable keyboard shortcuts
+- **Advanced Theming**: Custom color scheme builder with preview
+- **Import Functionality**: Import notes from common formats and other note apps
+- **Advanced Collaboration**: Comments, annotations, and activity feeds for shared notes
+- **Presence Indicators**: See who's viewing or editing shared notes in real-time
+
+Each phase builds upon the previous one, ensuring a stable and progressively enhanced user experience while maintaining our commitment to accessibility and universal design principles.
+
+## �🚀 Quick Start
 
 ### Prerequisites
 
