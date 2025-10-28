@@ -69,4 +69,12 @@ export const tagsAPI = {
   autocomplete: (q, limit = 10) => api.get('/api/tags/autocomplete', { params: { q, limit } }),
 }
 
+// Search Analytics API
+export const analyticsAPI = {
+  getPopularSearches: (limit = 10) => api.get('/api/analytics/popular', { params: { limit } }),
+  getSuggestions: (prefix, limit = 5) => api.get('/api/analytics/suggestions', { params: { prefix, limit } }),
+  getTrendingSearches: (limit = 10, days = 7) => api.get('/api/analytics/trending', { params: { limit, days } }),
+  getStats: () => api.get('/api/analytics/stats'),
+}
+
 export default api

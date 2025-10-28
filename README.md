@@ -25,20 +25,32 @@ A lightweight, scalable, open-source notes service with a visual UI, flexible AP
 - **Clickable Tags**: Click any tag to instantly filter notes
 - **Visual Feedback**: Tag chips on note cards for quick identification
 
+### 🔍 Search Analytics & Insights
+- **Search Tracking**: Automatically tracks every search query with frequency and result counts
+- **Smart Suggestions**: Real-time autocomplete based on your search history (min 2 characters)
+- **Popular Searches**: Dashboard showing your most frequent searches
+- **Trending Searches**: Identifies searches gaining popularity in the last 7 days
+- **Search Statistics**: Overview of total searches, unique queries, and average results
+- **Keyboard Navigation**: Arrow keys and Enter support in suggestion dropdown
+- **Visual Indicators**: Fire icons for popular searches, trend arrows for trending queries
+- **Privacy-First**: All analytics are per-user only, no cross-user tracking
+
 ## 🧭 Future Features Roadmap
 
 Building Notes2GoGo into a truly universal note-taking application with accessibility-first design. Development is planned in four phases:
 
 ### Phase 1: Quick Wins (Core Enhancements)
 - **✅ Tags System**: Complete tag creation, management, and filtering (COMPLETED)
-- **Improved Search**: Full-text search across all note content with advanced filters
+- **✅ Search Analytics**: Track searches, provide smart suggestions, and show insights (COMPLETED)
 - **Keyboard Shortcuts**: Essential shortcuts for note creation, saving, and navigation
 - **Export Functionality**: Export notes as PDF and Markdown formats
 - **Accessibility Labels**: Enhanced ARIA labels and screen reader support
 
 ### Phase 2: Core Features (Essential Functionality)
-- **Image Upload Support**: Attach and display images within notes
 - **Folder Organization**: Hierarchical folder/notebook system for better organization
+- **Natural Language Date Parsing**: Support for date expressions like "last-week", "yesterday", "today"
+- **Saved Searches UI**: Frontend interface for creating and managing saved searches
+- **In-Note Search Highlighting**: Highlight search terms within note content when viewing results
 - **Full Keyboard Navigation**: Complete keyboard accessibility throughout the application
 - **Theme Customization**: Expanded theme options including high-contrast and custom color schemes
 - **Print Functionality**: Print-friendly views with layout customization
@@ -46,11 +58,15 @@ Building Notes2GoGo into a truly universal note-taking application with accessib
 ### Phase 3: Advanced Features (Power User Tools)
 - **Real-time Collaboration**: Share notes and collaborate with others in real-time
 - **Drawing/Sketch Support**: Integrated canvas for drawings and handwritten notes
-- **OCR for Image Search**: Search text within images using optical character recognition
-- **Advanced File Attachments**: Support for PDF and audio file attachments
 - **Version History**: Track changes and restore previous versions of notes
 
-### Phase 4: Polish (Professional Experience)
+### Phase 4: Media & Attachments (Rich Content)
+- **File Attachment System**: Attach and manage images, PDFs, and media files within notes
+- **OCR for Image Search**: Search text within images using optical character recognition
+- **Structured To-Do Lists**: Native support for interactive to-do list management
+
+### Phase 5: Polish (Professional Experience)
+
 - **Custom Keyboard Shortcuts**: User-configurable keyboard shortcuts
 - **Advanced Theming**: Custom color scheme builder with preview
 - **Import Functionality**: Import notes from common formats and other note apps
@@ -58,6 +74,8 @@ Building Notes2GoGo into a truly universal note-taking application with accessib
 - **Presence Indicators**: See who's viewing or editing shared notes in real-time
 
 Each phase builds upon the previous one, ensuring a stable and progressively enhanced user experience while maintaining our commitment to accessibility and universal design principles.
+
+**Note**: Media-heavy features (file attachments, OCR, structured to-do lists) are separated into Phase 4 as they require significant infrastructure changes including file storage, processing pipelines, and extended database schemas.
 
 ## 🚀 Quick Start
 
@@ -124,6 +142,9 @@ docker compose run --rm backend python migrate_tags_data.py
 - **Notes**: Flexible content storage with JSONB for structured notes
 - **Tags**: Organized tag system with many-to-many relationships
 - **Note Tags**: Association table linking notes to tags
+- **Saved Searches**: User-defined saved search queries with parameters
+- **Folders**: Hierarchical folder organization (planned)
+- **Search Analytics**: Per-user search tracking with frequency and result counts
 - **Support**: Both simple text (Markdown) and structured (key-value) notes
 
 ## 🏷️ Using the Tag System
@@ -179,7 +200,72 @@ curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
   http://localhost:8000/api/notes/bulk-tag
 ```
 
+## � Using Search Analytics
+
+### Smart Search Suggestions
+- **Type to Get Suggestions**: Start typing in the search bar (minimum 2 characters)
+- **Autocomplete Dropdown**: Shows relevant suggestions based on your search history
+- **Keyboard Navigation**: 
+  - `↑↓` Arrow keys to navigate suggestions
+  - `Enter` to select a suggestion
+  - `Escape` to close the dropdown
+- **Visual Indicators**: Fire icons (🔥) mark frequently searched terms
+
+### Search Insights Dashboard
+Located in the sidebar, the Search Insights widget shows:
+- **Quick Stats**: 
+  - Total searches performed
+  - Unique queries
+  - Average results per search
+  - Most searched query
+- **Popular Searches**: Your most frequently searched terms with search counts
+- **Trending Searches**: Queries gaining popularity in the last 7 days
+- **Click to Search**: Click any query in the dashboard to execute it instantly
+
+### API Examples
+
+**Get search suggestions:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:8000/api/analytics/suggestions?prefix=pro&limit=5"
+```
+
+**Get popular searches:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:8000/api/analytics/popular?limit=10"
+```
+
+**Get trending searches:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "http://localhost:8000/api/analytics/trending?limit=10&days=7"
+```
+
+**Get search statistics:**
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8000/api/analytics/stats
+```
+
+### Privacy & Data
+- All search analytics are **per-user only**
+- You can only see your own search history
+- Data is automatically deleted when your account is deleted
+- No cross-user tracking or global search trends
+
 ## 📚 API Documentation
+
+### Analytics Endpoints
+- `GET /api/analytics/popular` - Get most popular searches
+  - Query parameters: `limit` (default: 10, max: 50)
+- `GET /api/analytics/suggestions` - Get search suggestions for autocomplete
+  - Query parameters: `prefix` (required), `limit` (default: 5, max: 20)
+- `GET /api/analytics/trending` - Get trending searches
+  - Query parameters: `limit` (default: 10, max: 50), `days` (default: 7, max: 30)
+- `GET /api/analytics/stats` - Get overall search statistics
+
+## �📚 API Documentation
 
 ### Authentication Endpoints
 - `POST /api/auth/register` - Register new user
@@ -210,6 +296,43 @@ curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
 - `DELETE /api/tags/{id}` - Delete tag
 - `POST /api/tags/merge` - Merge two tags
 - `GET /api/tags/autocomplete` - Get tag suggestions (query param: `q`)
+
+### Search Endpoints
+- `POST /api/search` - Advanced search across notes
+- `GET /api/search/saved` - List saved searches
+- `POST /api/search/saved` - Create a saved search
+- `GET /api/search/saved/{id}` - Get a saved search
+- `POST /api/search/saved/{id}/execute` - Execute a saved search
+- `PUT /api/search/saved/{id}` - Update a saved search
+- `DELETE /api/search/saved/{id}` - Delete a saved search
+
+Search request example:
+
+```json
+{
+   "query": "intitle:meeting tag:work \"project plan\"",
+   "tags": ["work"],
+   "tag_mode": "and",
+   "exclude_tags": ["archived"],
+   "note_type": "text",
+   "created_after": null,
+   "created_before": null,
+   "updated_after": null,
+   "updated_before": null,
+   "title_only": false,
+   "has_attachments": null,
+   "sort_by": "relevance",
+   "page": 1,
+   "per_page": 20
+}
+```
+
+Supported operators in query:
+- `intitle:term` (search in titles only)
+- `tag:name` and `-tag:name` (include/exclude tags)
+- `created:>=YYYY-MM-DD`, `updated:<YYYY-MM-DD` (date filters)
+- `"exact phrase"` (exact phrase)
+- `word1 NEAR/5 word2` (proximity search with optional distance)
 
 ### Note Types
 
@@ -402,15 +525,24 @@ notes2gogo/
 
 ## 🎯 Recent Updates
 
+### Search Analytics & Insights (New!)
+- **Smart Suggestions**: Autocomplete based on your search history
+- **Popular Searches**: See your most frequently searched terms
+- **Trending Searches**: Track queries gaining popularity
+- **Search Statistics**: Total searches, unique queries, and averages
+- **Privacy-First**: All analytics are per-user, no cross-user tracking
+
 ### UI/UX Improvements
 - **Live Search**: Search now filters as you type with 300ms debouncing
 - **Enhanced Search**: Searches across titles, tags, and all content (text and structured sections)
 - **Better Button Layout**: Fixed button wrapping issues for cleaner appearance
 - **Improved Structured Notes**: Card-based section editor with clear visual hierarchy
 - **Clear Search**: Added "✕" button to quickly clear search input
+- **Keyboard Navigation**: Full keyboard support in search suggestions
 
 ### Backend Improvements
 - **Comprehensive Search**: SQLAlchemy queries now search in title, tags, content_text, and content_structured (JSONB)
+- **Analytics Tracking**: Automatic search tracking with frequency and result counts
 - **Performance**: Search debouncing reduces unnecessary API calls
 
 ## 📜 License

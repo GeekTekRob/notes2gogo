@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useNotesStore } from '../store/notesStore'
 import TagManager from '../components/TagManager'
+import SavedSearchesDashboard from '../components/SavedSearchesDashboard'
+import SearchAnalytics from '../components/SearchAnalytics'
 import { 
   PlusIcon, 
-  MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
   TagIcon,
@@ -24,11 +25,9 @@ const DashboardPage = () => {
   } = useNotesStore()
 
   const [searchParams, setSearchParams] = useSearchParams()
-  const [searchInput, setSearchInput] = useState(filters.search)
   const [selectedTags, setSelectedTags] = useState([])
 
   useEffect(() => {
-    // Check if there's a tag parameter in the URL
     const tagParam = searchParams.get('tag')
     if (tagParam) {
       setSelectedTags([tagParam])
@@ -41,21 +40,6 @@ const DashboardPage = () => {
     }
     fetchNotes(1)
   }, [fetchNotes])
-
-  // Live search with debouncing
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      setFilters({ search: searchInput })
-      fetchNotes(1)
-    }, 300)
-
-    return () => clearTimeout(delayDebounce)
-  }, [searchInput, setFilters, fetchNotes])
-
-  const handleSearch = (e) => {
-    e.preventDefault()
-    // Search is now handled by the useEffect above
-  }
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
@@ -76,7 +60,6 @@ const DashboardPage = () => {
     }
     setSelectedTags(next)
 
-    // Build filters
     const tagsParam = next.join(',')
     const filterPayload = { tags: tagsParam, exclude_tags: '', tag_filter_mode: 'or' }
 
@@ -86,218 +69,177 @@ const DashboardPage = () => {
 
   const clearTagFilter = () => {
     setSelectedTags([])
-  setFilters({ tags: '', exclude_tags: '', tag_filter_mode: 'or' })
+    setFilters({ tags: '', exclude_tags: '', tag_filter_mode: 'or' })
     fetchNotes(1)
   }
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar - Tag Manager */}
         <div className="lg:col-span-1">
-          <div className="sticky top-4">
-            {/* Minimal: just the tag list; clicking toggles selection (OR behavior) */}
+          <div className="sticky top-4 space-y-4">
             <TagManager 
               onTagClick={handleTagClick} 
               selectedTags={selectedTags}
               onChanged={() => fetchNotes(1)} 
             />
+            <SavedSearchesDashboard />
+            <SearchAnalytics />
           </div>
         </div>
 
-        {/* Main Content */}
         <div className="lg:col-span-3">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
-                {pagination.total} notes total
-              </p>
-            </div>
-            <Link to="/notes/new" className="btn btn-primary inline-flex items-center whitespace-nowrap">
-              <PlusIcon className="h-5 w-5 mr-2" />
-              New Note
-            </Link>
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {pagination.total} notes total
+            </p>
           </div>
 
-      {/* Search and Filters */}
-      <div className="card mb-6">
-        <div className="relative">
-          <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search notes (title, tags, content)..."
-            value={searchInput}
-            onChange={(e) => {
-              setSearchInput(e.target.value)
-              if (selectedTags.length > 0) {
-                setSelectedTags([])
-                setFilters({ tags: '', exclude_tags: '', tag_filter_mode: 'or' })
-                fetchNotes(1)
-              }
-            }}
-            className="input pl-10"
-          />
-          {searchInput && (
-            <button
-              onClick={() => {
-                setSearchInput('')
-                // leaving selectedTags as-is when clearing search
-              }}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              title="Clear search"
-            >
-              ✕
-            </button>
+          {selectedTags.length > 0 && (
+            <div className="card mb-6">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtering by tags:</span>
+                  {selectedTags.map((t) => (
+                    <span key={t} className="inline-flex items-center bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 px-3 py-1 rounded-full text-sm font-medium">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  onClick={clearTagFilter}
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 underline"
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
           )}
-        </div>
-        {selectedTags.length > 0 && (
-          <div className="mt-3 flex items-center flex-wrap gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Filtering by tags:</span>
-            <div className="flex items-center flex-wrap gap-1">
-              {selectedTags.map((t) => (
-                <span key={t} className="inline-flex items-center bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 px-3 py-1 rounded-full text-sm font-medium">
-                  {t}
-                </span>
-              ))}
-              <button
-                onClick={clearTagFilter}
-                className="ml-2 text-sm text-primary-700 dark:text-primary-300 hover:underline"
-                title="Clear tag filters"
-              >
-                Clear tags
-              </button>
+
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
+              <p className="text-gray-600 dark:text-gray-400 mt-4">Loading notes...</p>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Notes Grid */}
-      {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 dark:border-primary-400 mx-auto"></div>
-          <p className="text-gray-600 dark:text-gray-400 mt-4">Loading notes...</p>
-        </div>
-      ) : notes.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-400 dark:text-gray-600 mb-4">
-            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No notes yet</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Get started by creating your first note.</p>
-          <Link to="/notes/new" className="btn btn-primary inline-flex items-center whitespace-nowrap">
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Create Your First Note
-          </Link>
-        </div>
-      ) : (
-        <>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {notes.map((note) => (
-              <div key={note.id} className="card hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <Link 
-                    to={`/notes/${note.id}`}
-                    className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 truncate flex-1 transition-colors cursor-pointer"
-                    title="View note"
-                  >
-                    {note.title}
-                  </Link>
-                  <div className="flex space-x-2 ml-2 flex-shrink-0">
-                    <Link
-                      to={`/notes/${note.id}/edit`}
-                      className="p-1 text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                      title="Edit note"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(note.id)}
-                      className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                      title="Delete note"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    note.note_type === 'text' 
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                  }`}>
-                    {note.note_type === 'text' ? 'Text' : 'Structured'}
-                  </span>
-                </div>
-
-                <div className="prose text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
-                  {note.note_type === 'text' 
-                    ? note.content?.substring(0, 150) + (note.content?.length > 150 ? '...' : '')
-                    : `${Object.keys(note.content || {}).length} sections`
-                  }
-                </div>
-
-                {note.tags && note.tags.length > 0 && (
-                  <div className="flex items-center space-x-1 mb-3">
-                    <TagIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                    <div className="flex flex-wrap gap-1">
-                      {note.tags.slice(0, 3).map((tag, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleTagClick(tag)}
-                          className={`inline-block text-xs px-2 py-1 rounded transition-colors ${
-                            selectedTags.includes(tag)
-                              ? 'bg-primary-500 text-white dark:bg-primary-600'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300'
-                          }`}
-                          title={`Filter by "${tag}"`}
+          ) : notes.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 dark:text-gray-600 mb-4">
+                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No notes yet</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Get started by creating your first note.</p>
+              <Link to="/notes/new" className="btn btn-primary inline-flex items-center whitespace-nowrap">
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Your First Note
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {notes.map((note) => (
+                  <div key={note.id} className="card hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <Link 
+                        to={`/notes/${note.id}`}
+                        className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 truncate flex-1 transition-colors cursor-pointer"
+                        title="View note"
+                      >
+                        {note.title}
+                      </Link>
+                      <div className="flex space-x-2 ml-2 flex-shrink-0">
+                        <Link
+                          to={`/notes/${note.id}/edit`}
+                          className="p-1 text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                          title="Edit note"
                         >
-                          {tag}
+                          <PencilIcon className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(note.id)}
+                          className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          title="Delete note"
+                        >
+                          <TrashIcon className="h-4 w-4" />
                         </button>
-                      ))}
-                      {note.tags.length > 3 && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">+{note.tags.length - 3} more</span>
-                      )}
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        note.note_type === 'text' 
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {note.note_type === 'text' ? 'Text' : 'Structured'}
+                      </span>
+                    </div>
+
+                    <div className="prose text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                      {note.note_type === 'text' 
+                        ? note.content?.substring(0, 150) + (note.content?.length > 150 ? '...' : '')
+                        : `${Object.keys(note.content || {}).length} sections`
+                      }
+                    </div>
+
+                    {note.tags && note.tags.length > 0 && (
+                      <div className="flex items-center space-x-1 mb-3">
+                        <TagIcon className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                        <div className="flex flex-wrap gap-1">
+                          {note.tags.slice(0, 3).map((tag, index) => (
+                            <button
+                              key={index}
+                              onClick={() => handleTagClick(tag)}
+                              className={`inline-block text-xs px-2 py-1 rounded transition-colors ${
+                                selectedTags.includes(tag)
+                                  ? 'bg-primary-500 text-white dark:bg-primary-600'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300'
+                              }`}
+                              title={`Filter by "${tag}"`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                          {note.tags.length > 3 && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">+{note.tags.length - 3} more</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                      <CalendarIcon className="h-4 w-4 mr-1" />
+                      Updated {format(new Date(note.updated_at), 'MMM d, yyyy')}
                     </div>
                   </div>
-                )}
-
-                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                  <CalendarIcon className="h-4 w-4 mr-1" />
-                  Updated {format(new Date(note.updated_at), 'MMM d, yyyy')}
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Pagination */}
-          {pagination.total > pagination.per_page && (
-            <div className="flex justify-center items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={!pagination.has_prev}
-                className="btn btn-secondary disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                Page {pagination.page} of {Math.ceil(pagination.total / pagination.per_page)}
-              </span>
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={!pagination.has_next}
-                className="btn btn-secondary disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
+              {pagination.total > pagination.per_page && (
+                <div className="flex justify-center items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={!pagination.has_prev}
+                    className="btn btn-secondary disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                    Page {pagination.page} of {Math.ceil(pagination.total / pagination.per_page)}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={!pagination.has_next}
+                    className="btn btn-secondary disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
         </div>
       </div>
     </div>
