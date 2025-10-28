@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
+import SearchBar from './SearchBar'
 import { 
   HomeIcon, 
   PlusIcon, 
@@ -26,13 +27,20 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
             <DocumentTextIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
             <span className="text-xl font-bold text-gray-900 dark:text-gray-100">Notes2GoGo</span>
           </Link>
 
+          {/* Search Bar - Only show when authenticated */}
+          {isAuthenticated && (
+            <div className="flex-1 max-w-2xl mx-8">
+              <SearchBar inNavbar={true} />
+            </div>
+          )}
+
           {/* Navigation */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-shrink-0">{/* Theme Toggle */}
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}

@@ -11,6 +11,7 @@ import DashboardPage from './pages/DashboardPage'
 import NoteEditorPage from './pages/NoteEditorPage'
 import NoteViewPage from './pages/NoteViewPage'
 import TagManagePage from './pages/TagManagePage'
+import SearchResultsPage from './pages/SearchResultsPage'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -66,6 +67,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <TagManagePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <SearchResultsPage />
               </ProtectedRoute>
             }
           />

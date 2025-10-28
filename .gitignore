@@ -38,7 +38,6 @@ venv.bak/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Node.js / React
 node_modules/
@@ -77,9 +76,6 @@ docker-compose.local.yml
 logs/
 *.log
 pip-log.txt
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
 
 # Testing
 .coverage
@@ -87,7 +83,6 @@ htmlcov/
 .pytest_cache/
 .tox/
 .nox/
-coverage/
 *.cover
 *.py,cover
 .hypothesis/
@@ -96,8 +91,8 @@ coverage/
 alembic/versions/__pycache__/
 
 # OS files
-Thumbs.db
 .DS_Store
+Thumbs.db
 *.bak
 *.tmp
 *.orig

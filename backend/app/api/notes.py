@@ -1,16 +1,22 @@
 from typing import Optional, List
+import time
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, or_, cast, String, and_, not_
 from app.core.database import get_db
-from app.models import Note, User, Tag
+from app.models import Note, User, Tag, SavedSearch
 from app.schemas import (
     NoteCreate, NoteUpdate, NoteResponse, NoteListResponse, NoteType,
-    BulkTagOperation, TagFilterMode
+    BulkTagOperation, TagFilterMode,
+    # Search schemas
+    SearchRequest, SearchResponse, SearchResultItem,
+    SavedSearchCreate, SavedSearchResponse, SavedSearchListResponse,
 )
 from app.api.auth import get_current_user
+from app.services.search import SearchService
 
 router = APIRouter()
+search_router = APIRouter()
 
 
 @router.post("/", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
@@ -360,3 +366,197 @@ async def bulk_tag_operation(
         "notes_affected": len(notes),
         "changes_made": updated_count
     }
+
+
+# ---- Consolidated Search Endpoints ----
+
+@search_router.post("/search", response_model=SearchResponse)
+async def advanced_search(
+    search_request: SearchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Perform advanced search with full-text search and filters."""
+
+    start_time = time.time()
+
+    try:
+        search_service = SearchService(db, current_user.id)
+        results, total = search_service.search(search_request)
+
+        execution_time_ms = (time.time() - start_time) * 1000
+        has_next = (search_request.page * search_request.per_page) < total
+        has_prev = search_request.page > 1
+
+        return SearchResponse(
+            results=results,
+            total=total,
+            page=search_request.page,
+            per_page=search_request.per_page,
+            has_next=has_next,
+            has_prev=has_prev,
+            query=search_request.query,
+            execution_time_ms=execution_time_ms,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Search failed: {str(e)}",
+        )
+
+
+@search_router.get("/search/saved", response_model=SavedSearchListResponse)
+async def get_saved_searches(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get all saved searches for the current user."""
+
+    saved_searches = (
+        db.query(SavedSearch)
+        .filter(SavedSearch.user_id == current_user.id)
+        .order_by(SavedSearch.last_used_at.desc().nullslast(), SavedSearch.created_at.desc())
+        .all()
+    )
+
+    total = len(saved_searches)
+
+    return SavedSearchListResponse(saved_searches=saved_searches, total=total)
+
+
+@search_router.post("/search/saved", response_model=SavedSearchResponse, status_code=status.HTTP_201_CREATED)
+async def create_saved_search(
+    saved_search_data: SavedSearchCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new saved search."""
+
+    search_query_dict = saved_search_data.search_query.model_dump()
+
+    saved_search = SavedSearch(
+        name=saved_search_data.name,
+        search_query=search_query_dict,
+        user_id=current_user.id,
+    )
+
+    db.add(saved_search)
+    db.commit()
+    db.refresh(saved_search)
+
+    return saved_search
+
+
+@search_router.get("/search/saved/{saved_search_id}", response_model=SavedSearchResponse)
+async def get_saved_search(
+    saved_search_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a specific saved search."""
+
+    saved_search = (
+        db.query(SavedSearch)
+        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .first()
+    )
+
+    if not saved_search:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+
+    return saved_search
+
+
+@search_router.post("/search/saved/{saved_search_id}/execute", response_model=SearchResponse)
+async def execute_saved_search(
+    saved_search_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Execute a saved search and update usage statistics."""
+
+    saved_search = (
+        db.query(SavedSearch)
+        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .first()
+    )
+
+    if not saved_search:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+
+    from datetime import datetime
+
+    saved_search.last_used_at = datetime.utcnow()
+    saved_search.use_count += 1
+    db.commit()
+
+    search_request = SearchRequest(**saved_search.search_query)
+
+    start_time = time.time()
+    search_service = SearchService(db, current_user.id)
+    results, total = search_service.search(search_request)
+    execution_time_ms = (time.time() - start_time) * 1000
+
+    has_next = (search_request.page * search_request.per_page) < total
+    has_prev = search_request.page > 1
+
+    return SearchResponse(
+        results=results,
+        total=total,
+        page=search_request.page,
+        per_page=search_request.per_page,
+        has_next=has_next,
+        has_prev=has_prev,
+        query=search_request.query,
+        execution_time_ms=execution_time_ms,
+    )
+
+
+@search_router.delete("/search/saved/{saved_search_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_saved_search(
+    saved_search_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a saved search."""
+
+    saved_search = (
+        db.query(SavedSearch)
+        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .first()
+    )
+
+    if not saved_search:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+
+    db.delete(saved_search)
+    db.commit()
+
+    return None
+
+
+@search_router.put("/search/saved/{saved_search_id}", response_model=SavedSearchResponse)
+async def update_saved_search(
+    saved_search_id: int,
+    saved_search_data: SavedSearchCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a saved search."""
+
+    saved_search = (
+        db.query(SavedSearch)
+        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .first()
+    )
+
+    if not saved_search:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+
+    saved_search.name = saved_search_data.name
+    saved_search.search_query = saved_search_data.search_query.model_dump()
+
+    db.commit()
+    db.refresh(saved_search)
+
+    return saved_search

@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Search Analytics System**: Comprehensive search tracking and insights
+  - Automatic tracking of all search queries with frequency and result counts
+  - Smart search suggestions/autocomplete based on search history (min 2 characters)
+  - Popular searches dashboard showing most frequent queries
+  - Trending searches identifying queries gaining popularity (last 7 days comparison)
+  - Search statistics: total searches, unique queries, average results, most searched
+  - Keyboard navigation support in suggestion dropdown (↑↓ arrows, Enter, Escape)
+  - Visual indicators for popular (🔥) and trending searches
+  - Per-user analytics with privacy-first approach (no cross-user tracking)
+  - Database migration for `search_analytics` table with proper indexing
+  - Backend API endpoints: `/api/analytics/popular`, `/api/analytics/suggestions`, `/api/analytics/trending`, `/api/analytics/stats`
+  - Frontend `SearchAnalytics` component with tabbed interface
+  - Enhanced `SearchBar` component with autocomplete dropdown
 - Live search functionality with real-time filtering as users type
 - Search debouncing (300ms delay) to reduce server load
 - Clear search button (✕) that appears when search input has text
@@ -37,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structured note section layout was cramped and unclear
 
 ### Technical
+- Search analytics backend integration in `SearchService._track_search_analytics()`
+- Database schema includes `search_analytics` table with user_id, query_text, search_count, and timestamps
+- Relevance scoring for search suggestions based on frequency and recency
+- Rolling average calculation for result counts in analytics
 - Backend search now uses SQLAlchemy `or_()` with multiple conditions
 - Search includes casting JSONB and array types to String for comprehensive text search
 - React useEffect with debouncing for efficient search updates

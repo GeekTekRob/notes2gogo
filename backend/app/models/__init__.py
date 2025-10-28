@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Enum as SQLEnum, Table
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TSVECTOR
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -32,6 +32,9 @@ class User(Base):
     # Relationships
     notes = relationship("Note", back_populates="owner", cascade="all, delete-orphan")
     tags = relationship("Tag", back_populates="owner", cascade="all, delete-orphan")
+    saved_searches = relationship("SavedSearch", back_populates="owner", cascade="all, delete-orphan")
+    folders = relationship("Folder", back_populates="owner", cascade="all, delete-orphan")
+    search_analytics = relationship("SearchAnalytics", cascade="all, delete-orphan")
 
 
 class Tag(Base):
@@ -56,6 +59,26 @@ class Tag(Base):
         return f"<Tag(id={self.id}, name='{self.name}', user_id={self.user_id})>"
 
 
+class Folder(Base):
+    """Folder/Notebook model for organizing notes hierarchically."""
+    __tablename__ = "folders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey("folders.id", ondelete="CASCADE"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    owner = relationship("User", back_populates="folders")
+    parent = relationship("Folder", remote_side=[id], backref="children")
+    notes = relationship("Note", back_populates="folder")
+    
+    def __repr__(self):
+        return f"<Folder(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+
+
 class Note(Base):
     """Note model supporting both text and structured content."""
     __tablename__ = "notes"
@@ -71,15 +94,21 @@ class Note(Base):
     # Legacy tags array - keeping for backwards compatibility during migration
     tags_array = Column(ARRAY(String), nullable=True)
     
-    # Foreign key to user
+    # Foreign keys
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    folder_id = Column(Integer, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True)
     
+    # Full-text search tsvector columns (populated by DB trigger)
+    title_tsv = Column(TSVECTOR, nullable=True)
+    content_tsv = Column(TSVECTOR, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
     owner = relationship("User", back_populates="notes")
+    folder = relationship("Folder", back_populates="notes")
     tags = relationship("Tag", secondary=note_tags, back_populates="notes")
     
     @property
@@ -99,3 +128,42 @@ class Note(Base):
         else:
             self.content_structured = value
             self.content_text = None
+
+
+class SavedSearch(Base):
+    """Saved search model for storing user's favorite search queries."""
+    __tablename__ = "saved_searches"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    search_query = Column(JSONB, nullable=False)  # Stores SearchRequest as JSON
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    use_count = Column(Integer, default=0, nullable=False)
+    
+    # Relationships
+    owner = relationship("User", back_populates="saved_searches")
+    
+    def __repr__(self):
+        return f"<SavedSearch(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+
+
+class SearchAnalytics(Base):
+    """Search analytics model for tracking search queries and usage patterns."""
+    __tablename__ = "search_analytics"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    query_text = Column(String(500), nullable=False, index=True)
+    search_count = Column(Integer, nullable=False, default=1)
+    last_searched_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    avg_result_count = Column(Integer, nullable=True)
+    last_result_count = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    
+    # Relationships
+    owner = relationship("User")
+    
+    def __repr__(self):
+        return f"<SearchAnalytics(id={self.id}, query='{self.query_text}', count={self.search_count})>"

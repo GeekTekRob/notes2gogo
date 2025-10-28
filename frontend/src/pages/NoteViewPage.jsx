@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useEffect, useMemo } from 'react'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useNotesStore } from '../store/notesStore'
 import ReactMarkdown from 'react-markdown'
 import { 
@@ -13,9 +13,96 @@ import {
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 
+// Component to highlight search terms in text
+const HighlightedText = ({ text, searchTerms }) => {
+  if (!searchTerms || searchTerms.length === 0) {
+    return <span>{text}</span>;
+  }
+
+  // Create regex pattern for all search terms
+  const pattern = searchTerms
+    .filter(term => term && term.length > 0)
+    .map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) // Escape special chars
+    .join('|');
+
+  if (!pattern) return <span>{text}</span>;
+
+  const regex = new RegExp(`(${pattern})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <span>
+      {parts.map((part, index) => {
+        const isHighlighted = regex.test(part);
+        return isHighlighted ? (
+          <mark
+            key={index}
+            className="bg-yellow-200 dark:bg-yellow-600 px-1 rounded"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={index}>{part}</span>
+        );
+      })}
+    </span>
+  );
+};
+
+// Custom ReactMarkdown component that highlights search terms
+const MarkdownWithHighlight = ({ children, searchTerms }) => {
+  const components = useMemo(() => ({
+    p: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <p {...props}><HighlightedText text={children} searchTerms={searchTerms} /></p>;
+      }
+      return <p {...props}>{children}</p>;
+    },
+    li: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <li {...props}><HighlightedText text={children} searchTerms={searchTerms} /></li>;
+      }
+      return <li {...props}>{children}</li>;
+    },
+    h1: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <h1 {...props}><HighlightedText text={children} searchTerms={searchTerms} /></h1>;
+      }
+      return <h1 {...props}>{children}</h1>;
+    },
+    h2: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <h2 {...props}><HighlightedText text={children} searchTerms={searchTerms} /></h2>;
+      }
+      return <h2 {...props}>{children}</h2>;
+    },
+    h3: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <h3 {...props}><HighlightedText text={children} searchTerms={searchTerms} /></h3>;
+      }
+      return <h3 {...props}>{children}</h3>;
+    },
+    strong: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <strong {...props}><HighlightedText text={children} searchTerms={searchTerms} /></strong>;
+      }
+      return <strong {...props}>{children}</strong>;
+    },
+    em: ({ children, ...props }) => {
+      if (typeof children === 'string') {
+        return <em {...props}><HighlightedText text={children} searchTerms={searchTerms} /></em>;
+      }
+      return <em {...props}>{children}</em>;
+    },
+  }), [searchTerms]);
+
+  return <ReactMarkdown components={components}>{children}</ReactMarkdown>;
+};
+
 const NoteViewPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   
   const { 
     currentNote, 
@@ -24,6 +111,32 @@ const NoteViewPage = () => {
     deleteNote,
     clearCurrentNote 
   } = useNotesStore()
+
+  // Extract search terms from URL params
+  const searchTerms = useMemo(() => {
+    const query = searchParams.get('q') || '';
+    const highlight = searchParams.get('highlight') || '';
+    
+    // Parse query for search terms
+    const terms = [];
+    
+    if (query) {
+      // Extract words from query, removing operators
+      const words = query
+        .replace(/intitle:|tag:|created:|updated:|has:|todo:/gi, '')
+        .replace(/["()]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !['and', 'or', 'not', 'near'].includes(w.toLowerCase()));
+      terms.push(...words);
+    }
+    
+    if (highlight) {
+      // Additional terms to highlight
+      terms.push(...highlight.split(',').map(t => t.trim()));
+    }
+    
+    return [...new Set(terms)]; // Remove duplicates
+  }, [searchParams]);
 
   useEffect(() => {
     if (id) {
@@ -98,10 +211,10 @@ const NoteViewPage = () => {
       {/* Note Content Card */}
       <div className="card">
         {/* Title and Meta */}
-        <div className="mb-6">
+          <div className="mb-6">
           <div className="flex items-start justify-between mb-3">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex-1">
-              {currentNote.title}
+              <HighlightedText text={currentNote.title} searchTerms={searchTerms} />
             </h1>
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ml-4 ${
               currentNote.note_type === 'text' 
@@ -157,9 +270,19 @@ const NoteViewPage = () => {
         <hr className="border-gray-200 dark:border-gray-700 mb-6" />
 
         {/* Content Display */}
+        {searchTerms.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              Highlighting search terms: <span className="font-medium">{searchTerms.join(', ')}</span>
+            </p>
+          </div>
+        )}
+        
         {currentNote.note_type === 'text' ? (
           <div className="prose prose-lg max-w-none dark:prose-invert">
-            <ReactMarkdown>{currentNote.content || 'No content'}</ReactMarkdown>
+            <MarkdownWithHighlight searchTerms={searchTerms}>
+              {currentNote.content || 'No content'}
+            </MarkdownWithHighlight>
           </div>
         ) : (
           <div className="space-y-6">
@@ -167,10 +290,12 @@ const NoteViewPage = () => {
               Object.entries(currentNote.content).map(([key, value], index) => (
                 <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                    {key}
+                    <HighlightedText text={key} searchTerms={searchTerms} />
                   </h2>
                   <div className="prose prose-lg max-w-none dark:prose-invert">
-                    <ReactMarkdown>{value || 'No content'}</ReactMarkdown>
+                    <MarkdownWithHighlight searchTerms={searchTerms}>
+                      {value || 'No content'}
+                    </MarkdownWithHighlight>
                   </div>
                 </div>
               ))
