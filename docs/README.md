@@ -37,6 +37,33 @@ New to Notes2GoGo? Start here:
 
 ## 🔧 Developer Documentation
 
+### Architecture & Design
+- **[Architecture Guide](./ARCHITECTURE.md)** - System design and database schema
+  - Technology stack overview
+  - Database ERD and schema
+  - API design patterns
+  - Frontend architecture
+  - Data flow diagrams
+  - Security architecture
+  - Scalability considerations
+
+### Development & Deployment
+- **[Development Guide](./DEVELOPMENT.md)** - Detailed setup for contributors
+  - Step-by-step environment setup
+  - Common issues and solutions
+  - Testing guidelines
+  - Debugging tips
+  - Docker development workflow
+  - IDE configuration
+
+- **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment strategies
+  - Docker deployment
+  - Cloud platforms (AWS, DigitalOcean, Heroku)
+  - Manual VPS deployment
+  - Security configuration
+  - Performance optimization
+  - Monitoring and backup
+
 ### API & Integration
 - **[API Reference](./API.md)** - Complete REST API documentation
   - Authentication endpoints
@@ -45,8 +72,31 @@ New to Notes2GoGo? Start here:
   - Search analytics
   - Error handling
 
+- **[API Examples](./API_EXAMPLES.md)** - Practical code examples
+  - curl commands
+  - HTTPie examples
+  - JavaScript/Axios code
+  - Error handling patterns
+  - Postman collection
+
+### Project Planning
+- **[Roadmap](./ROADMAP.md)** - Detailed feature planning with timelines
+  - Current version status
+  - Phase 1-5 detailed plans
+  - Future considerations
+  - Community involvement
+  - Release cadence
+
+- **[FAQ](./FAQ.md)** - Frequently Asked Questions
+  - General questions
+  - Getting started
+  - Feature explanations
+  - Technical details
+  - Troubleshooting
+  - Privacy and security
+
 ### Contributing
-- **[Contributing Guide](./CONTRIBUTING.md)** - How to contribute to Notes2GoGo
+- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to Notes2GoGo
   - Development setup
   - Code standards
   - Pull request process
