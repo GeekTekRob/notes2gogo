@@ -32,6 +32,54 @@ ENV/
 env.bak/
 venv.bak/
 
+# =============================================================================
+# SECURITY: Environment & Secrets Protection
+# =============================================================================
+# Never commit actual environment files
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Secrets directory (if used)
+secrets/
+secrets.*
+!secrets.example/
+
+# Private keys and certificates
+*.pem
+*.key
+*.cert
+*.crt
+*.csr
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+*.ssh
+
+# Cloud provider credentials
+.aws/
+.gcloud/
+.azure/
+
+# Database backups (may contain sensitive data)
+*.sql
+*.dump
+backups/
+
+# Config files that might contain secrets
+config.local.*
+*-local.yml
+*-local.yaml
+*-local.json
+*.secret.*
+
 # IDEs
 .vscode/
 .idea/
@@ -61,6 +109,8 @@ frontend/dist/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Additional environment file patterns covered above in Security section
 
 # Database
 *.db
@@ -104,10 +154,11 @@ Thumbs.db
 .python-version
 
 # Secrets
-secrets/
-*.pem
-*.key
-*.cert
+# Now handled in Security section above
+# secrets/
+# *.pem
+# *.key
+# *.cert
 
 # Build artifacts
 *.tar.gz
