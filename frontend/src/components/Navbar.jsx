@@ -23,12 +23,23 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
+    <nav 
+      role="navigation" 
+      aria-label="Main navigation"
+      className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors duration-200"
+    >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
-            <DocumentTextIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+          <Link 
+            to="/" 
+            className="flex items-center space-x-2 flex-shrink-0"
+            aria-label="Notes2GoGo home"
+          >
+            <DocumentTextIcon 
+              className="h-8 w-8 text-primary-600 dark:text-primary-400" 
+              aria-hidden="true"
+            />
             <span className="text-xl font-bold text-gray-900 dark:text-gray-100">Notes2GoGo</span>
           </Link>
 
@@ -40,17 +51,18 @@ const Navbar = () => {
           )}
 
           {/* Navigation */}
-          <div className="flex items-center space-x-4 flex-shrink-0">{/* Theme Toggle */}
+          <div className="flex items-center space-x-4 flex-shrink-0">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDarkMode ? (
-                <SunIcon className="h-6 w-6" />
+                <SunIcon className="h-6 w-6" aria-hidden="true" />
               ) : (
-                <MoonIcon className="h-6 w-6" />
+                <MoonIcon className="h-6 w-6" aria-hidden="true" />
               )}
             </button>
 
@@ -59,29 +71,35 @@ const Navbar = () => {
                 <Link
                   to="/dashboard"
                   className="flex items-center space-x-1 px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  aria-label="Go to dashboard"
                 >
-                  <HomeIcon className="h-5 w-5" />
+                  <HomeIcon className="h-5 w-5" aria-hidden="true" />
                   <span>Dashboard</span>
                 </Link>
                 
                 <Link
                   to="/notes/new"
                   className="flex items-center space-x-1 btn btn-primary"
+                  aria-label="Create new note (Alt+N)"
                 >
-                  <PlusIcon className="h-5 w-5" />
+                  <PlusIcon className="h-5 w-5" aria-hidden="true" />
                   <span>New Note</span>
                 </Link>
 
-                <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
-                  <UserIcon className="h-5 w-5" />
+                <div 
+                  className="flex items-center space-x-2 text-gray-700 dark:text-gray-300"
+                  aria-label={`Logged in as ${user?.username}`}
+                >
+                  <UserIcon className="h-5 w-5" aria-hidden="true" />
                   <span className="text-sm">{user?.username}</span>
                 </div>
 
                 <button
                   onClick={handleLogout}
                   className="flex items-center space-x-1 px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                  aria-label="Log out"
                 >
-                  <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                  <ArrowRightOnRectangleIcon className="h-5 w-5" aria-hidden="true" />
                   <span>Logout</span>
                 </button>
               </>
@@ -90,12 +108,14 @@ const Navbar = () => {
                 <Link
                   to="/login"
                   className="px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  aria-label="Log in to your account"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
                   className="btn btn-primary"
+                  aria-label="Create new account"
                 >
                   Sign Up
                 </Link>

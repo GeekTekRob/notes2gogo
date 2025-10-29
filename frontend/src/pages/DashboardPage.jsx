@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useNotesStore } from '../store/notesStore'
+import { useToast } from '../components/ToastContainer'
+import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts'
 import TagManager from '../components/TagManager'
 import SavedSearchesDashboard from '../components/SavedSearchesDashboard'
 import SearchAnalytics from '../components/SearchAnalytics'
@@ -24,8 +26,15 @@ const DashboardPage = () => {
     deleteNote,
   } = useNotesStore()
 
+  const { showToast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedTags, setSelectedTags] = useState([])
+  const [sidebarVisible, setSidebarVisible] = useState(true)
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onToggleSidebar: () => setSidebarVisible(prev => !prev)
+  })
 
   useEffect(() => {
     const tagParam = searchParams.get('tag')
@@ -41,9 +50,14 @@ const DashboardPage = () => {
     fetchNotes(1)
   }, [fetchNotes])
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this note?')) {
-      await deleteNote(id)
+  const handleDelete = async (id, noteTitle) => {
+    if (window.confirm(`Are you sure you want to delete "${noteTitle}"?`)) {
+      const result = await deleteNote(id)
+      if (result) {
+        showToast('Note deleted successfully', 'success')
+      } else {
+        showToast('Failed to delete note', 'error')
+      }
     }
   }
 
@@ -76,7 +90,12 @@ const DashboardPage = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
+        {/* Sidebar */}
+        <aside 
+          className={`lg:col-span-1 ${sidebarVisible ? '' : 'hidden lg:block'}`}
+          role="complementary"
+          aria-label="Sidebar with filters and analytics"
+        >
           <div className="sticky top-4 space-y-4">
             <TagManager 
               onTagClick={handleTagClick} 
@@ -86,14 +105,27 @@ const DashboardPage = () => {
             <SavedSearchesDashboard />
             <SearchAnalytics />
           </div>
-        </div>
+        </aside>
 
-        <div className="lg:col-span-3">
+        {/* Main content */}
+        <main className="lg:col-span-3" role="main">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              {pagination.total} notes total
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">My Notes</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  {pagination.total} notes total
+                </p>
+              </div>
+              <button
+                onClick={() => setSidebarVisible(prev => !prev)}
+                className="lg:hidden btn btn-secondary"
+                aria-label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+                aria-expanded={sidebarVisible}
+              >
+                {sidebarVisible ? 'Hide' : 'Show'} Filters
+              </button>
+            </div>
           </div>
 
           {selectedTags.length > 0 && (
@@ -138,14 +170,22 @@ const DashboardPage = () => {
             </div>
           ) : (
             <>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div 
+                className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+                role="list"
+                aria-label="Your notes"
+              >
                 {notes.map((note) => (
-                  <div key={note.id} className="card hover:shadow-md transition-shadow">
+                  <article 
+                    key={note.id} 
+                    className="card hover:shadow-md transition-shadow"
+                    role="listitem"
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <Link 
                         to={`/notes/${note.id}`}
                         className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 truncate flex-1 transition-colors cursor-pointer"
-                        title="View note"
+                        aria-label={`View note: ${note.title}`}
                       >
                         {note.title}
                       </Link>
@@ -153,16 +193,16 @@ const DashboardPage = () => {
                         <Link
                           to={`/notes/${note.id}/edit`}
                           className="p-1 text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                          title="Edit note"
+                          aria-label={`Edit ${note.title}`}
                         >
-                          <PencilIcon className="h-4 w-4" />
+                          <PencilIcon className="h-4 w-4" aria-hidden="true" />
                         </Link>
                         <button
-                          onClick={() => handleDelete(note.id)}
+                          onClick={() => handleDelete(note.id, note.title)}
                           className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                          title="Delete note"
+                          aria-label={`Delete ${note.title}`}
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <TrashIcon className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -210,37 +250,43 @@ const DashboardPage = () => {
                     )}
 
                     <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                      <CalendarIcon className="h-4 w-4 mr-1" />
-                      Updated {format(new Date(note.updated_at), 'MMM d, yyyy')}
+                      <CalendarIcon className="h-4 w-4 mr-1" aria-hidden="true" />
+                      <span>Updated {format(new Date(note.updated_at), 'MMM d, yyyy')}</span>
                     </div>
-                  </div>
+                  </article>
                 ))}
               </div>
 
               {pagination.total > pagination.per_page && (
-                <div className="flex justify-center items-center space-x-2">
+                <nav 
+                  className="flex justify-center items-center space-x-2"
+                  role="navigation"
+                  aria-label="Pagination"
+                >
                   <button
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={!pagination.has_prev}
                     className="btn btn-secondary disabled:opacity-50"
+                    aria-label="Go to previous page"
                   >
                     Previous
                   </button>
-                  <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                  <span className="px-4 py-2 text-gray-700 dark:text-gray-300" aria-current="page">
                     Page {pagination.page} of {Math.ceil(pagination.total / pagination.per_page)}
                   </span>
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={!pagination.has_next}
                     className="btn btn-secondary disabled:opacity-50"
+                    aria-label="Go to next page"
                   >
                     Next
                   </button>
-                </div>
+                </nav>
               )}
             </>
           )}
-        </div>
+        </main>
       </div>
     </div>
   )
