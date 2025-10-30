@@ -1,18 +1,30 @@
-from typing import Optional, List
 import time
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
+from sqlalchemy import String, and_, cast, desc, not_, or_
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, or_, cast, String, and_, not_
-from app.core.database import get_db
-from app.models import Note, User, Tag, SavedSearch
-from app.schemas import (
-    NoteCreate, NoteUpdate, NoteResponse, NoteListResponse, NoteType,
-    BulkTagOperation, TagFilterMode,
-    # Search schemas
-    SearchRequest, SearchResponse, SearchResultItem,
-    SavedSearchCreate, SavedSearchResponse, SavedSearchListResponse,
-)
+
 from app.api.auth import get_current_user
+from app.core.database import get_db
+from app.models import Note, SavedSearch, Tag, User
+from app.schemas import (
+    BulkTagOperation,
+    NoteCreate,  # Search schemas
+    NoteListResponse,
+    NoteResponse,
+    NoteType,
+    NoteUpdate,
+    SavedSearchCreate,
+    SavedSearchListResponse,
+    SavedSearchResponse,
+    SearchRequest,
+    SearchResponse,
+    SearchResultItem,
+    TagFilterMode,
+)
+from app.services.export import ExportService
 from app.services.search import SearchService
 
 router = APIRouter()
@@ -23,55 +35,54 @@ search_router = APIRouter()
 async def create_note(
     note_data: NoteCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new note with tags."""
     # Create note instance
     db_note = Note(
-        title=note_data.title,
-        note_type=note_data.note_type,
-        user_id=current_user.id
+        title=note_data.title, note_type=note_data.note_type, user_id=current_user.id
     )
-    
+
     # Set content based on note type
     if note_data.note_type == NoteType.TEXT:
         if not isinstance(note_data.content, str):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Content must be a string for TEXT notes"
+                detail="Content must be a string for TEXT notes",
             )
         db_note.content_text = note_data.content
     else:  # STRUCTURED
         if not isinstance(note_data.content, dict):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Content must be a dictionary for STRUCTURED notes"
+                detail="Content must be a dictionary for STRUCTURED notes",
             )
         db_note.content_structured = note_data.content
-    
+
     # Handle tags
     if note_data.tags:
         for tag_name in note_data.tags:
             tag_name = tag_name.strip().lower()
             if not tag_name:
                 continue
-                
+
             # Get or create tag
-            tag = db.query(Tag).filter(
-                Tag.user_id == current_user.id,
-                Tag.name == tag_name
-            ).first()
-            
+            tag = (
+                db.query(Tag)
+                .filter(Tag.user_id == current_user.id, Tag.name == tag_name)
+                .first()
+            )
+
             if not tag:
                 tag = Tag(name=tag_name, user_id=current_user.id)
                 db.add(tag)
-            
+
             db_note.tags.append(tag)
-    
+
     db.add(db_note)
     db.commit()
     db.refresh(db_note)
-    
+
     return NoteResponse.from_orm_with_tags(db_note)
 
 
@@ -82,40 +93,47 @@ async def get_notes(
     search: Optional[str] = Query(None, description="Search in title and content"),
     note_type: Optional[NoteType] = Query(None, description="Filter by note type"),
     tags: Optional[str] = Query(None, description="Filter by tags (comma-separated)"),
-    tag_filter_mode: TagFilterMode = Query(TagFilterMode.AND, description="Tag filter mode: 'and', 'or', or 'exclude'"),
-    exclude_tags: Optional[str] = Query(None, description="Exclude notes with these tags (comma-separated)"),
+    tag_filter_mode: TagFilterMode = Query(
+        TagFilterMode.AND, description="Tag filter mode: 'and', 'or', or 'exclude'"
+    ),
+    exclude_tags: Optional[str] = Query(
+        None, description="Exclude notes with these tags (comma-separated)"
+    ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get paginated list of user's notes with advanced filtering."""
     # Base query with eager loading of tags
-    query = db.query(Note).options(joinedload(Note.tags)).filter(Note.user_id == current_user.id)
-    
+    query = (
+        db.query(Note)
+        .options(joinedload(Note.tags))
+        .filter(Note.user_id == current_user.id)
+    )
+
     # Apply note type filter
     if note_type:
         query = query.filter(Note.note_type == note_type)
-    
+
     # Apply text search
     if search:
         search_filter = f"%{search}%"
         search_conditions = [
             Note.title.ilike(search_filter),
             Note.content_text.ilike(search_filter),
-            cast(Note.content_structured, String).ilike(search_filter)
+            cast(Note.content_structured, String).ilike(search_filter),
         ]
-        
+
         # Also search in tag names
-        query = query.outerjoin(Note.tags).filter(
-            or_(
-                *search_conditions,
-                Tag.name.ilike(search_filter)
-            )
-        ).distinct()
-    
+        query = (
+            query.outerjoin(Note.tags)
+            .filter(or_(*search_conditions, Tag.name.ilike(search_filter)))
+            .distinct()
+        )
+
     # Apply tag filters
     if tags:
         tag_list = [tag.strip().lower() for tag in tags.split(",") if tag.strip()]
-        
+
         if tag_list:
             if tag_filter_mode == TagFilterMode.AND:
                 # Notes must have ALL specified tags
@@ -124,40 +142,50 @@ async def get_notes(
             elif tag_filter_mode == TagFilterMode.OR:
                 # Notes must have AT LEAST ONE of the specified tags
                 query = query.join(Note.tags).filter(Tag.name.in_(tag_list)).distinct()
-    
+
     # Apply exclude tags filter
     if exclude_tags:
-        exclude_tag_list = [tag.strip().lower() for tag in exclude_tags.split(",") if tag.strip()]
-        
+        exclude_tag_list = [
+            tag.strip().lower() for tag in exclude_tags.split(",") if tag.strip()
+        ]
+
         if exclude_tag_list:
             # Subquery to find notes with excluded tags
-            excluded_note_ids = db.query(Note.id).join(Note.tags).filter(
-                Note.user_id == current_user.id,
-                Tag.name.in_(exclude_tag_list)
-            ).distinct().subquery()
-            
+            excluded_note_ids = (
+                db.query(Note.id)
+                .join(Note.tags)
+                .filter(Note.user_id == current_user.id, Tag.name.in_(exclude_tag_list))
+                .distinct()
+                .subquery()
+            )
+
             query = query.filter(not_(Note.id.in_(excluded_note_ids)))
-    
+
     # Get total count
     total = query.count()
-    
+
     # Apply pagination and ordering
-    notes = query.order_by(desc(Note.updated_at)).offset((page - 1) * per_page).limit(per_page).all()
-    
+    notes = (
+        query.order_by(desc(Note.updated_at))
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
     # Convert to response format with tags
     note_responses = [NoteResponse.from_orm_with_tags(note) for note in notes]
-    
+
     # Calculate pagination info
     has_next = (page * per_page) < total
     has_prev = page > 1
-    
+
     return NoteListResponse(
         notes=note_responses,
         total=total,
         page=page,
         per_page=per_page,
         has_next=has_next,
-        has_prev=has_prev
+        has_prev=has_prev,
     )
 
 
@@ -165,20 +193,21 @@ async def get_notes(
 async def get_note(
     note_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get a specific note by ID."""
-    note = db.query(Note).options(joinedload(Note.tags)).filter(
-        Note.id == note_id,
-        Note.user_id == current_user.id
-    ).first()
-    
+    note = (
+        db.query(Note)
+        .options(joinedload(Note.tags))
+        .filter(Note.id == note_id, Note.user_id == current_user.id)
+        .first()
+    )
+
     if not note:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Note not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
         )
-    
+
     return NoteResponse.from_orm_with_tags(note)
 
 
@@ -187,23 +216,24 @@ async def update_note(
     note_id: int,
     note_update: NoteUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update a specific note."""
-    note = db.query(Note).options(joinedload(Note.tags)).filter(
-        Note.id == note_id,
-        Note.user_id == current_user.id
-    ).first()
-    
+    note = (
+        db.query(Note)
+        .options(joinedload(Note.tags))
+        .filter(Note.id == note_id, Note.user_id == current_user.id)
+        .first()
+    )
+
     if not note:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Note not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
         )
-    
+
     # Update fields if provided
     update_data = note_update.dict(exclude_unset=True)
-    
+
     for field, value in update_data.items():
         if field == "content":
             # Handle content update based on note type
@@ -211,7 +241,7 @@ async def update_note(
                 if not isinstance(value, str):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Content must be a string for TEXT notes"
+                        detail="Content must be a string for TEXT notes",
                     )
                 note.content_text = value
                 note.content_structured = None
@@ -219,7 +249,7 @@ async def update_note(
                 if not isinstance(value, dict):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Content must be a dictionary for STRUCTURED notes"
+                        detail="Content must be a dictionary for STRUCTURED notes",
                     )
                 note.content_structured = value
                 note.content_text = None
@@ -238,24 +268,25 @@ async def update_note(
                     tag_name = tag_name.strip().lower()
                     if not tag_name:
                         continue
-                    
+
                     # Get or create tag
-                    tag = db.query(Tag).filter(
-                        Tag.user_id == current_user.id,
-                        Tag.name == tag_name
-                    ).first()
-                    
+                    tag = (
+                        db.query(Tag)
+                        .filter(Tag.user_id == current_user.id, Tag.name == tag_name)
+                        .first()
+                    )
+
                     if not tag:
                         tag = Tag(name=tag_name, user_id=current_user.id)
                         db.add(tag)
-                    
+
                     note.tags.append(tag)
         else:
             setattr(note, field, value)
-    
+
     db.commit()
     db.refresh(note)
-    
+
     return NoteResponse.from_orm_with_tags(note)
 
 
@@ -263,23 +294,23 @@ async def update_note(
 async def delete_note(
     note_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a specific note."""
-    note = db.query(Note).filter(
-        Note.id == note_id,
-        Note.user_id == current_user.id
-    ).first()
-    
+    note = (
+        db.query(Note)
+        .filter(Note.id == note_id, Note.user_id == current_user.id)
+        .first()
+    )
+
     if not note:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Note not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
         )
-    
+
     db.delete(note)
     db.commit()
-    
+
     return None
 
 
@@ -287,94 +318,96 @@ async def delete_note(
 async def bulk_tag_operation(
     operation_data: BulkTagOperation,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Perform bulk tag operations on multiple notes.
     Operations: 'add', 'remove', or 'replace'
     """
     # Validate operation
-    if operation_data.operation not in ['add', 'remove', 'replace']:
+    if operation_data.operation not in ["add", "remove", "replace"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Operation must be 'add', 'remove', or 'replace'"
+            detail="Operation must be 'add', 'remove', or 'replace'",
         )
-    
+
     # Get all notes
-    notes = db.query(Note).filter(
-        Note.id.in_(operation_data.note_ids),
-        Note.user_id == current_user.id
-    ).all()
-    
+    notes = (
+        db.query(Note)
+        .filter(Note.id.in_(operation_data.note_ids), Note.user_id == current_user.id)
+        .all()
+    )
+
     if len(notes) != len(operation_data.note_ids):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Some notes were not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Some notes were not found"
         )
-    
+
     # Normalize tag names
     tag_names = [tag.strip().lower() for tag in operation_data.tag_names if tag.strip()]
-    
+
     if not tag_names:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one valid tag name is required"
+            detail="At least one valid tag name is required",
         )
-    
+
     # Get or create tags
     tags = []
     for tag_name in tag_names:
-        tag = db.query(Tag).filter(
-            Tag.user_id == current_user.id,
-            Tag.name == tag_name
-        ).first()
-        
+        tag = (
+            db.query(Tag)
+            .filter(Tag.user_id == current_user.id, Tag.name == tag_name)
+            .first()
+        )
+
         if not tag:
             tag = Tag(name=tag_name, user_id=current_user.id)
             db.add(tag)
-        
+
         tags.append(tag)
-    
+
     # Perform operation on each note
     updated_count = 0
     for note in notes:
-        if operation_data.operation == 'add':
+        if operation_data.operation == "add":
             # Add tags that aren't already on the note
             for tag in tags:
                 if tag not in note.tags:
                     note.tags.append(tag)
                     updated_count += 1
-        
-        elif operation_data.operation == 'remove':
+
+        elif operation_data.operation == "remove":
             # Remove specified tags from the note
             for tag in tags:
                 if tag in note.tags:
                     note.tags.remove(tag)
                     updated_count += 1
-        
-        elif operation_data.operation == 'replace':
+
+        elif operation_data.operation == "replace":
             # Replace all tags with the specified ones
             note.tags.clear()
             note.tags.extend(tags)
             updated_count += 1
-    
+
     db.commit()
-    
+
     return {
-        "message": f"Bulk tag operation completed",
+        "message": "Bulk tag operation completed",
         "operation": operation_data.operation,
         "notes_affected": len(notes),
-        "changes_made": updated_count
+        "changes_made": updated_count,
     }
 
 
 # ---- Consolidated Search Endpoints ----
 
+
 @search_router.post("/search", response_model=SearchResponse)
 async def advanced_search(
     search_request: SearchRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Perform advanced search with full-text search and filters."""
 
@@ -415,7 +448,9 @@ async def get_saved_searches(
     saved_searches = (
         db.query(SavedSearch)
         .filter(SavedSearch.user_id == current_user.id)
-        .order_by(SavedSearch.last_used_at.desc().nullslast(), SavedSearch.created_at.desc())
+        .order_by(
+            SavedSearch.last_used_at.desc().nullslast(), SavedSearch.created_at.desc()
+        )
         .all()
     )
 
@@ -424,7 +459,11 @@ async def get_saved_searches(
     return SavedSearchListResponse(saved_searches=saved_searches, total=total)
 
 
-@search_router.post("/search/saved", response_model=SavedSearchResponse, status_code=status.HTTP_201_CREATED)
+@search_router.post(
+    "/search/saved",
+    response_model=SavedSearchResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_saved_search(
     saved_search_data: SavedSearchCreate,
     db: Session = Depends(get_db),
@@ -447,7 +486,9 @@ async def create_saved_search(
     return saved_search
 
 
-@search_router.get("/search/saved/{saved_search_id}", response_model=SavedSearchResponse)
+@search_router.get(
+    "/search/saved/{saved_search_id}", response_model=SavedSearchResponse
+)
 async def get_saved_search(
     saved_search_id: int,
     db: Session = Depends(get_db),
@@ -457,17 +498,23 @@ async def get_saved_search(
 
     saved_search = (
         db.query(SavedSearch)
-        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .filter(
+            SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id
+        )
         .first()
     )
 
     if not saved_search:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     return saved_search
 
 
-@search_router.post("/search/saved/{saved_search_id}/execute", response_model=SearchResponse)
+@search_router.post(
+    "/search/saved/{saved_search_id}/execute", response_model=SearchResponse
+)
 async def execute_saved_search(
     saved_search_id: int,
     db: Session = Depends(get_db),
@@ -477,12 +524,16 @@ async def execute_saved_search(
 
     saved_search = (
         db.query(SavedSearch)
-        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .filter(
+            SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id
+        )
         .first()
     )
 
     if not saved_search:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     from datetime import datetime
 
@@ -512,7 +563,9 @@ async def execute_saved_search(
     )
 
 
-@search_router.delete("/search/saved/{saved_search_id}", status_code=status.HTTP_204_NO_CONTENT)
+@search_router.delete(
+    "/search/saved/{saved_search_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_saved_search(
     saved_search_id: int,
     db: Session = Depends(get_db),
@@ -522,12 +575,16 @@ async def delete_saved_search(
 
     saved_search = (
         db.query(SavedSearch)
-        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .filter(
+            SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id
+        )
         .first()
     )
 
     if not saved_search:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     db.delete(saved_search)
     db.commit()
@@ -535,7 +592,9 @@ async def delete_saved_search(
     return None
 
 
-@search_router.put("/search/saved/{saved_search_id}", response_model=SavedSearchResponse)
+@search_router.put(
+    "/search/saved/{saved_search_id}", response_model=SavedSearchResponse
+)
 async def update_saved_search(
     saved_search_id: int,
     saved_search_data: SavedSearchCreate,
@@ -546,12 +605,16 @@ async def update_saved_search(
 
     saved_search = (
         db.query(SavedSearch)
-        .filter(SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id)
+        .filter(
+            SavedSearch.id == saved_search_id, SavedSearch.user_id == current_user.id
+        )
         .first()
     )
 
     if not saved_search:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     saved_search.name = saved_search_data.name
     saved_search.search_query = saved_search_data.search_query.model_dump()
@@ -560,3 +623,101 @@ async def update_saved_search(
     db.refresh(saved_search)
 
     return saved_search
+
+
+@router.get("/{note_id}/export/pdf")
+async def export_note_to_pdf(
+    note_id: int,
+    paper_size: str = Query(
+        "letter", regex="^(letter|a4)$", description="Paper size: letter or a4"
+    ),
+    orientation: str = Query(
+        "portrait", regex="^(portrait|landscape)$", description="Page orientation"
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export a note to PDF format.
+
+    - **note_id**: ID of the note to export
+    - **paper_size**: Paper size (letter or a4), defaults to letter
+    - **orientation**: Page orientation (portrait or landscape), defaults to portrait
+    """
+    # Get note with tags eagerly loaded
+    note = (
+        db.query(Note)
+        .options(joinedload(Note.tags), joinedload(Note.folder))
+        .filter(Note.id == note_id, Note.user_id == current_user.id)
+        .first()
+    )
+
+    if not note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
+        )
+
+    try:
+        # Generate PDF
+        pdf_bytes, filename = ExportService.export_to_pdf(
+            note=note, paper_size=paper_size, orientation=orientation
+        )
+
+        # Return PDF as download
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Type": "application/pdf",
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate PDF: {str(e)}",
+        )
+
+
+@router.get("/{note_id}/export/markdown")
+async def export_note_to_markdown(
+    note_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export a note to Markdown format with YAML frontmatter.
+
+    - **note_id**: ID of the note to export
+    """
+    # Get note with tags eagerly loaded
+    note = (
+        db.query(Note)
+        .options(joinedload(Note.tags), joinedload(Note.folder))
+        .filter(Note.id == note_id, Note.user_id == current_user.id)
+        .first()
+    )
+
+    if not note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Note not found"
+        )
+
+    try:
+        # Generate Markdown
+        md_bytes, filename = ExportService.export_to_markdown(note)
+
+        # Return Markdown as download
+        return Response(
+            content=md_bytes,
+            media_type="text/markdown",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Type": "text/markdown; charset=utf-8",
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate Markdown: {str(e)}",
+        )
