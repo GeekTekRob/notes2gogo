@@ -2,4 +2,4 @@
 
 from app.utils.date_parser import NaturalDateParser
 
-__all__ = ['NaturalDateParser']
+__all__ = ["NaturalDateParser"]

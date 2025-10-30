@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useNotesStore } from '../store/notesStore'
+import { notesAPI } from '../services/api'
 import ReactMarkdown from 'react-markdown'
 import { 
   PencilIcon, 
@@ -9,7 +10,9 @@ import {
   TagIcon,
   CalendarIcon,
   DocumentTextIcon,
-  RectangleStackIcon
+  RectangleStackIcon,
+  ArrowDownTrayIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 
@@ -103,6 +106,8 @@ const NoteViewPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   
   const { 
     currentNote, 
@@ -157,6 +162,87 @@ const NoteViewPage = () => {
     }
   }
 
+  const handleExportPDF = async (paperSize = 'letter', orientation = 'portrait') => {
+    try {
+      setIsExporting(true)
+      setShowExportMenu(false)
+      
+      const response = await notesAPI.exportToPdf(id, { 
+        paper_size: paperSize,
+        orientation: orientation
+      })
+      
+      // Create a blob from the response
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      
+      // Extract filename from Content-Disposition header or generate one
+      const contentDisposition = response.headers['content-disposition']
+      let filename = `note-${id}.pdf`
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+      
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+    } catch (error) {
+      console.error('Failed to export PDF:', error)
+      alert('Failed to export note as PDF. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportMarkdown = async () => {
+    try {
+      setIsExporting(true)
+      setShowExportMenu(false)
+      
+      const response = await notesAPI.exportToMarkdown(id)
+      
+      // Create a blob from the response
+      const blob = new Blob([response.data], { type: 'text/markdown' })
+      
+      // Extract filename from Content-Disposition header or generate one
+      const contentDisposition = response.headers['content-disposition']
+      let filename = `note-${id}.md`
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+      
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+    } catch (error) {
+      console.error('Failed to export Markdown:', error)
+      alert('Failed to export note as Markdown. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -191,6 +277,83 @@ const NoteViewPage = () => {
         </Link>
         
         <div className="flex items-center space-x-2">
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={isExporting}
+              className="btn btn-secondary inline-flex items-center"
+              title="Export note"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+              {isExporting ? 'Exporting...' : 'Export'}
+              <ChevronDownIcon className="h-4 w-4 ml-1" />
+            </button>
+            
+            {showExportMenu && (
+              <>
+                {/* Backdrop to close menu */}
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowExportMenu(false)}
+                />
+                
+                {/* Dropdown menu */}
+                <div className="absolute right-0 mt-2 w-56 rounded-lg shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-20">
+                  <div className="py-1" role="menu">
+                    {/* PDF Export Options */}
+                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Export as PDF
+                    </div>
+                    <button
+                      onClick={() => handleExportPDF('letter', 'portrait')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      role="menuitem"
+                    >
+                      📄 PDF (Letter, Portrait)
+                    </button>
+                    <button
+                      onClick={() => handleExportPDF('letter', 'landscape')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      role="menuitem"
+                    >
+                      📄 PDF (Letter, Landscape)
+                    </button>
+                    <button
+                      onClick={() => handleExportPDF('a4', 'portrait')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      role="menuitem"
+                    >
+                      📄 PDF (A4, Portrait)
+                    </button>
+                    <button
+                      onClick={() => handleExportPDF('a4', 'landscape')}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      role="menuitem"
+                    >
+                      📄 PDF (A4, Landscape)
+                    </button>
+                    
+                    {/* Divider */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                    
+                    {/* Markdown Export */}
+                    <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                      Export as Markdown
+                    </div>
+                    <button
+                      onClick={handleExportMarkdown}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      role="menuitem"
+                    >
+                      📝 Markdown (.md)
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
           <Link
             to={`/notes/${id}/edit`}
             className="btn btn-secondary inline-flex items-center"

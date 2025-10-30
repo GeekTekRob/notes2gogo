@@ -58,6 +58,13 @@ export const notesAPI = {
   createNote: (data) => api.post('/api/notes/', data),
   updateNote: (id, data) => api.put(`/api/notes/${id}`, data),
   deleteNote: (id) => api.delete(`/api/notes/${id}`),
+  exportToPdf: (id, params = {}) => api.get(`/api/notes/${id}/export/pdf`, { 
+    params,
+    responseType: 'blob'
+  }),
+  exportToMarkdown: (id) => api.get(`/api/notes/${id}/export/markdown`, {
+    responseType: 'blob'
+  }),
 }
 
 // Tags API

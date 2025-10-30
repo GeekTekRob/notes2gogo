@@ -55,6 +55,15 @@ A lightweight, scalable, open-source notes service with a visual UI, flexible AP
 - **Privacy-First**: Per-user analytics only, no cross-user tracking
 - **[Full Search Analytics Guide →](./docs/SEARCH_ANALYTICS.md)**
 
+### 📤 Export Functionality
+- **PDF Export**: Professional PDF documents with custom paper sizes and orientations
+- **Markdown Export**: Standard GFM with YAML frontmatter for maximum portability
+- **Metadata Preservation**: Includes titles, dates, tags, and folder information
+- **Format Fidelity**: Preserves rich text formatting, links, and code blocks
+- **One-Click Export**: Simple dropdown menu with multiple format options
+- **Structured Notes Supported**: Handles both `{summary, sections}` and key-value structured notes
+- **[Full Export Guide →](./docs/EXPORT.md)**
+
 ## 🧭 Future Features Roadmap
 
 Building Notes2GoGo into a truly universal note-taking application with accessibility-first design. Development is planned in four phases:
@@ -64,7 +73,7 @@ Building Notes2GoGo into a truly universal note-taking application with accessib
 - **✅ Search Analytics**: Track searches, provide smart suggestions, and show insights
 - **✅ Keyboard Shortcuts**: Essential shortcuts for note creation, saving, and navigation
 - **✅ Accessibility Labels**: Enhanced ARIA labels and screen reader support (WCAG 2.1 AA)
-- **Export Functionality**: Export notes as PDF and Markdown formats (Coming Soon)
+- **✅ Export Functionality**: Export notes as PDF and Markdown formats - **[Full Export Guide →](./docs/EXPORT.md)**
 
 ### Phase 2: Core Features (Essential Functionality)
 - **Folder Organization**: Hierarchical folder/notebook system for better organization

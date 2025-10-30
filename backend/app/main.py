@@ -1,17 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import logging
+
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import verify_token
 from app.models import User
-import logging
-from fastapi.responses import JSONResponse
-from fastapi.requests import Request
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
 
 # Create FastAPI instance
 app = FastAPI(
@@ -41,7 +42,7 @@ security = HTTPBearer()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> User:
     """Get the current authenticated user."""
     username = verify_token(credentials.credentials)
@@ -51,7 +52,7 @@ async def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(
@@ -59,13 +60,12 @@ async def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
-    
+
     return user
 
 
@@ -75,7 +75,9 @@ async def root():
     return {
         "message": "Welcome to Notes2GoGo API",
         "version": settings.version,
-        "docs": "/docs" if settings.debug else "Documentation available in development mode"
+        "docs": "/docs"
+        if settings.debug
+        else "Documentation available in development mode",
     }
 
 
@@ -85,13 +87,14 @@ async def health_check():
     return {"status": "healthy", "version": settings.version}
 
 
+from app.api.analytics import router as analytics_router
+
 # Import and include routers
 from app.api.auth import router as auth_router
+from app.api.folders import router as folders_router
 from app.api.notes import router as notes_router
 from app.api.notes import search_router as search_router
 from app.api.tags import router as tags_router
-from app.api.folders import router as folders_router
-from app.api.analytics import router as analytics_router
 
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(notes_router, prefix="/api/notes", tags=["Notes"])
@@ -103,12 +106,8 @@ app.include_router(analytics_router, prefix="/api/analytics", tags=["Search Anal
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=settings.debug
-    )
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=settings.debug)
 
 
 # Global exception handlers to return JSON and allow CORS middleware to set headers
