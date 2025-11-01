@@ -50,27 +50,28 @@ username=user@example.com&password=securepassword123
 
 ### Login (JSON)
 ```http
-POST /api/auth/login-json
-Content-Type: application/json
-
+  "email": "user@example.com",
+  "username": "johndoe",
+  "password": "securepassword123"
 {
   "email": "user@example.com",
   "password": "securepassword123"
 }
 ```
-
-**Response (200 OK):**
-```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
+  "id": 1,
+  "email": "user@example.com",
+  "username": "johndoe",
+  "is_active": true,
+  "created_at": "2025-10-29T10:00:00"
+}
   "user": {
     "id": 1,
     "email": "user@example.com",
     "full_name": "John Doe"
   }
 }
-```
+username=johndoe&password=securepassword123
 
 ### Get Current User
 ```http
@@ -78,22 +79,17 @@ GET /api/auth/me
 Authorization: Bearer YOUR_JWT_TOKEN
 ```
 
-**Response (200 OK):**
-```json
+  "username": "johndoe",
+  "password": "securepassword123"
 {
   "id": 1,
   "email": "user@example.com",
   "full_name": "John Doe",
   "created_at": "2025-10-29T10:00:00"
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
 }
-```
-
----
-
-## Notes Endpoints
-
-### List Notes
-```http
 GET /api/notes/?page=1&per_page=10&search=keyword&tags=work,urgent&tag_filter_mode=and
 Authorization: Bearer YOUR_JWT_TOKEN
 ```
@@ -103,12 +99,13 @@ Authorization: Bearer YOUR_JWT_TOKEN
 - `per_page` (int): Items per page (default: 10, max: 100)
 - `search` (string): Search in title, tags, and content
 - `note_type` (string): Filter by type (`text` or `structured`)
-- `tags` (string): Comma-separated tag names
-- `tag_filter_mode` (string): `and`, `or`, or `exclude`
-- `exclude_tags` (string): Comma-separated tags to exclude
-
-**Response (200 OK):**
-```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "username": "johndoe",
+  "is_active": true,
+  "created_at": "2025-10-29T10:00:00"
+}
 {
   "notes": [
     {
@@ -118,19 +115,9 @@ Authorization: Bearer YOUR_JWT_TOKEN
       "content": "# Meeting Summary\n\n...",
       "tags": ["work", "meeting"],
       "created_at": "2025-10-29T10:00:00",
-      "updated_at": "2025-10-29T11:00:00"
-    }
-  ],
-  "total": 42,
-  "page": 1,
-  "per_page": 10,
-  "pages": 5
-}
+```json
+["work", "workout", "workspace"]
 ```
-
-### Create Note
-```http
-POST /api/notes/
 Authorization: Bearer YOUR_JWT_TOKEN
 Content-Type: application/json
 
@@ -145,11 +132,15 @@ Content-Type: application/json
 **Response (201 Created):**
 ```json
 {
-  "id": 2,
-  "title": "New Note",
-  "note_type": "text",
-  "content": "Note content here...",
-  "tags": ["personal", "ideas"],
+```json
+{
+  "id": 3,
+  "name": "target-tag",
+  "user_id": 1,
+  "created_at": "2025-10-20T12:00:00",
+  "note_count": 22
+}
+```
   "created_at": "2025-10-29T12:00:00",
   "updated_at": "2025-10-29T12:00:00"
 }
@@ -158,14 +149,16 @@ Content-Type: application/json
 ### Get Specific Note
 ```http
 GET /api/notes/{note_id}
-Authorization: Bearer YOUR_JWT_TOKEN
-```
-
-**Response (200 OK):**
 ```json
-{
-  "id": 1,
-  "title": "Meeting Notes",
+[
+  {
+    "query_text": "project planning",
+    "search_count": 12,
+    "last_searched_at": "2025-10-29T10:30:00",
+    "relevance_score": 0.87
+  }
+]
+```
   "note_type": "text",
   "content": "# Meeting Summary...",
   "tags": ["work", "meeting"],
@@ -174,15 +167,16 @@ Authorization: Bearer YOUR_JWT_TOKEN
 }
 ```
 
-### Update Note
-```http
-PUT /api/notes/{note_id}
-Authorization: Bearer YOUR_JWT_TOKEN
-Content-Type: application/json
-
-{
-  "title": "Updated Title",
-  "content": "Updated content...",
+```json
+[
+  {
+    "query_text": "meeting notes",
+    "search_count": 45,
+    "last_searched_at": "2025-10-29T09:15:00",
+    "avg_result_count": 12.5
+  }
+]
+```
   "tags": ["work", "meeting", "action-items"]
 }
 ```
@@ -191,15 +185,17 @@ Content-Type: application/json
 ```json
 {
   "id": 1,
-  "title": "Updated Title",
-  "note_type": "text",
-  "content": "Updated content...",
-  "tags": ["work", "meeting", "action-items"],
-  "updated_at": "2025-10-29T13:00:00"
-}
+```json
+[
+  {
+    "query_text": "api documentation",
+    "search_count": 20,
+    "recent_search_count": 15,
+    "trend_direction": "up",
+    "last_searched_at": "2025-10-29T10:00:00"
+  }
+]
 ```
-
-### Delete Note
 ```http
 DELETE /api/notes/{note_id}
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -208,14 +204,16 @@ Authorization: Bearer YOUR_JWT_TOKEN
 **Response (204 No Content)**
 
 ### Bulk Tag Operations
-```http
-POST /api/notes/bulk-tag
-Authorization: Bearer YOUR_JWT_TOKEN
-Content-Type: application/json
-
+```json
 {
-  "note_ids": [1, 2, 3],
-  "tag_names": ["important", "review"],
+  "total_searches": 234,
+  "unique_queries": 87,
+  "avg_results_per_search": 8.3,
+  "most_searched_query": "meeting notes",
+  "searches_today": 12,
+  "searches_this_week": 68
+}
+```
   "operation": "add"
 }
 ```
@@ -246,9 +244,13 @@ Authorization: Bearer YOUR_JWT_TOKEN
   {
     "id": 1,
     "name": "work",
-    "note_count": 15
-  },
-  {
+      "snippet": "...discussed project plan...",
+      "relevance_score": 0.95,
+      "match_locations": ["title", "content"],
+      "tags": ["work", "meeting"],
+      "user_id": 1,
+      "created_at": "2025-10-20T09:00:00",
+      "updated_at": "2025-10-21T12:00:00"
     "id": 2,
     "name": "personal",
     "note_count": 8
