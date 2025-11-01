@@ -226,31 +226,30 @@ const SearchBar = ({ inNavbar = true }) => {
     ];
 
     return (
-      <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-4 z-50 max-h-96 overflow-y-auto">
+      <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 sm:p-4 z-50 max-h-[70vh] sm:max-h-96 overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Search Operators</h3>
+          <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100">Search Operators</h3>
           <button
             onClick={handleToggleHelp}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+            aria-label="Close help"
           >
-            <XMarkIcon className="w-4 h-4" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
         
-        <div className="space-y-2">
+        <div className="space-y-3 sm:space-y-2">
           {syntaxExamples.map((item, index) => (
             <div key={index} className="flex flex-col space-y-1">
-              <div className="flex items-center space-x-2">
-                <code className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
-                  {item.example}
-                </code>
-                <span className="text-xs text-gray-600 dark:text-gray-400">{item.description}</span>
-              </div>
+              <code className="text-xs sm:text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1.5 sm:py-1 rounded inline-block">
+                {item.example}
+              </code>
+              <span className="text-xs sm:text-xs text-gray-600 dark:text-gray-400">{item.description}</span>
             </div>
           ))}
         </div>
         
-        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 hidden sm:block">
           <p className="text-xs text-gray-500 dark:text-gray-400">
             <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
               Ctrl+K
@@ -267,25 +266,26 @@ const SearchBar = ({ inNavbar = true }) => {
     if (!showSuggestions || suggestions.length === 0) return null;
 
     return (
-      <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-        <div className="py-2">
+      <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-[50vh] sm:max-h-96 overflow-y-auto">
+        <div className="py-1">
           {suggestions.map((suggestion, index) => (
             <button
               key={index}
               onClick={() => handleSuggestionClick(suggestion.query_text)}
-              className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+              className={`w-full px-3 sm:px-4 py-3 sm:py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation ${
                 index === selectedSuggestionIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 flex-1">
-                  <ClockIcon className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-900 dark:text-gray-100">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center space-x-2 flex-1 min-w-0">
+                  <ClockIcon className="w-4 h-4 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm sm:text-sm text-gray-900 dark:text-gray-100 truncate">
                     {suggestion.query_text}
                   </span>
                 </div>
-                <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span>{suggestion.search_count} searches</span>
+                <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                  <span className="hidden sm:inline">{suggestion.search_count} searches</span>
+                  <span className="sm:hidden">{suggestion.search_count}</span>
                   {suggestion.relevance_score > 0.7 && (
                     <FireIcon className="w-4 h-4 text-orange-500" />
                   )}
@@ -299,10 +299,10 @@ const SearchBar = ({ inNavbar = true }) => {
   };
 
   return (
-    <div className={`relative ${inNavbar ? 'w-full max-w-xl' : 'w-full'}`}>
+    <div className={`relative ${inNavbar ? 'w-full' : 'w-full'}`}>
       <form onSubmit={handleSearch} className="relative">
         <div className="relative flex items-center">
-          <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-3 w-5 h-5 text-gray-400 pointer-events-none" />
           
           <input
             ref={inputRef}
@@ -311,35 +311,38 @@ const SearchBar = ({ inNavbar = true }) => {
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
-            placeholder="Search notes... (Ctrl+K)"
-            className="w-full pl-10 pr-24 py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
-                     bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+            placeholder="Search notes..."
+            className="w-full pl-10 pr-32 sm:pr-36 py-2.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg 
+                     bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-base sm:text-sm
                      placeholder-gray-500 dark:placeholder-gray-400
                      focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
                      transition-colors"
+            aria-label="Search notes"
           />
           
-          <div className="absolute right-2 flex items-center space-x-1">
+          <div className="absolute right-1 flex items-center space-x-0.5 sm:space-x-1">
             {localQuery && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
+                className="p-2 sm:p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
                 title="Clear search"
+                aria-label="Clear search"
               >
-                <XMarkIcon className="w-4 h-4" />
+                <XMarkIcon className="w-5 h-5 sm:w-4 sm:h-4" />
               </button>
             )}
             
             <button
               type="button"
               onClick={toggleAdvancedFilters}
-              className={`p-1 rounded transition-colors ${
+              className={`p-2 sm:p-1.5 rounded transition-colors touch-manipulation ${
                 isAdvancedFiltersOpen
                   ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
               title="Advanced filters"
+              aria-label="Toggle advanced filters"
             >
               <AdjustmentsHorizontalIcon className="w-5 h-5" />
             </button>
@@ -347,12 +350,13 @@ const SearchBar = ({ inNavbar = true }) => {
             <button
               type="button"
               onClick={handleToggleSavedSearches}
-              className={`p-1 rounded transition-colors ${
+              className={`p-2 sm:p-1.5 rounded transition-colors touch-manipulation ${
                 showSavedSearches
                   ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                  : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
               title="Saved searches"
+              aria-label="Toggle saved searches"
             >
               <BookmarkIcon className="w-5 h-5" />
             </button>
@@ -360,10 +364,12 @@ const SearchBar = ({ inNavbar = true }) => {
             <button
               type="button"
               onClick={handleToggleHelp}
-              className="px-2 py-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded"
+              className="p-2 sm:px-2 sm:py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors touch-manipulation"
               title="Search syntax help"
+              aria-label="Show search syntax help"
             >
-              ?
+              <span className="hidden sm:inline">?</span>
+              <span className="sm:hidden text-lg">?</span>
             </button>
           </div>
         </div>

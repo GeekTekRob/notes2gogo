@@ -11,7 +11,8 @@ import {
   PencilIcon,
   TrashIcon,
   TagIcon,
-  CalendarIcon
+  CalendarIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 
@@ -29,7 +30,7 @@ const DashboardPage = () => {
   const { showToast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedTags, setSelectedTags] = useState([])
-  const [sidebarVisible, setSidebarVisible] = useState(true)
+  const [sidebarVisible, setSidebarVisible] = useState(false) // Start hidden on mobile
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -89,26 +90,9 @@ const DashboardPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <aside 
-          className={`lg:col-span-1 ${sidebarVisible ? '' : 'hidden lg:block'}`}
-          role="complementary"
-          aria-label="Sidebar with filters and analytics"
-        >
-          <div className="sticky top-4 space-y-4">
-            <TagManager 
-              onTagClick={handleTagClick} 
-              selectedTags={selectedTags}
-              onChanged={() => fetchNotes(1)} 
-            />
-            <SavedSearchesDashboard />
-            <SearchAnalytics />
-          </div>
-        </aside>
-
-        {/* Main content */}
-        <main className="lg:col-span-3" role="main">
+      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6">
+        {/* Main content - Shows first on mobile */}
+        <main className="lg:col-span-3 order-1 lg:order-2" role="main">
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
@@ -117,16 +101,41 @@ const DashboardPage = () => {
                   {pagination.total} notes total
                 </p>
               </div>
+              {/* Mobile: Show Filters button */}
               <button
                 onClick={() => setSidebarVisible(prev => !prev)}
-                className="lg:hidden btn btn-secondary"
-                aria-label={sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+                className="lg:hidden btn btn-secondary flex items-center space-x-2"
+                aria-label={sidebarVisible ? 'Hide filters' : 'Show filters'}
                 aria-expanded={sidebarVisible}
               >
-                {sidebarVisible ? 'Hide' : 'Show'} Filters
+                <AdjustmentsHorizontalIcon className="h-5 w-5" aria-hidden="true" />
+                <span>{sidebarVisible ? 'Hide' : 'Filters'}</span>
               </button>
             </div>
           </div>
+
+          {/* Mobile Filters Panel - Appears right under heading */}
+          {sidebarVisible && (
+            <div className="lg:hidden mb-6 space-y-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters & Searches</h2>
+                <button
+                  onClick={() => setSidebarVisible(false)}
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 underline"
+                  aria-label="Hide filters"
+                >
+                  Hide
+                </button>
+              </div>
+              <TagManager 
+                onTagClick={handleTagClick} 
+                selectedTags={selectedTags}
+                onChanged={() => fetchNotes(1)} 
+              />
+              <SavedSearchesDashboard />
+              <SearchAnalytics />
+            </div>
+          )}
 
           {selectedTags.length > 0 && (
             <div className="card mb-6">
@@ -287,6 +296,23 @@ const DashboardPage = () => {
             </>
           )}
         </main>
+
+        {/* Sidebar - Desktop only (left side) */}
+        <aside 
+          className="hidden lg:block lg:col-span-1 lg:order-1"
+          role="complementary"
+          aria-label="Sidebar with filters and analytics"
+        >
+          <div className="lg:sticky lg:top-4 space-y-4">
+            <TagManager 
+              onTagClick={handleTagClick} 
+              selectedTags={selectedTags}
+              onChanged={() => fetchNotes(1)} 
+            />
+            <SavedSearchesDashboard />
+            <SearchAnalytics />
+          </div>
+        </aside>
       </div>
     </div>
   )

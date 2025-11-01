@@ -22,10 +22,10 @@ const KeyboardShortcuts = () => {
 
   return (
     <>
-      {/* Trigger button */}
+      {/* Trigger button - Hidden on mobile devices since keyboard shortcuts aren't relevant for touch interfaces */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 p-3 bg-primary-600 dark:bg-primary-500 text-white rounded-full shadow-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors z-40"
+        className="hidden md:flex fixed bottom-4 right-4 p-3 bg-primary-600 dark:bg-primary-500 text-white rounded-full shadow-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors z-40"
         aria-label="Show keyboard shortcuts"
         title="Keyboard shortcuts"
       >

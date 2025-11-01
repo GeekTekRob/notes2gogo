@@ -267,16 +267,20 @@ const NoteViewPage = () => {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header with Actions */}
-      <div className="flex items-center justify-between mb-6">
-        <Link
-          to="/dashboard"
-          className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-        >
-          <ArrowLeftIcon className="h-5 w-5" />
-          <span>Back to Dashboard</span>
-        </Link>
-        
-        <div className="flex items-center space-x-2">
+      <div className="mb-6 space-y-4">
+        {/* Back to Dashboard - Full width on its own row */}
+        <div>
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+            <span>Back to Dashboard</span>
+          </Link>
+        </div>
+
+        {/* Action Buttons - Responsive layout */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* Export Dropdown */}
           <div className="relative">
             <button
@@ -285,9 +289,9 @@ const NoteViewPage = () => {
               className="btn btn-secondary inline-flex items-center"
               title="Export note"
             >
-              <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-              {isExporting ? 'Exporting...' : 'Export'}
-              <ChevronDownIcon className="h-4 w-4 ml-1" />
+              <ArrowDownTrayIcon className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
+              <ChevronDownIcon className="h-4 w-4 sm:ml-1" />
             </button>
             
             {showExportMenu && (
@@ -358,15 +362,16 @@ const NoteViewPage = () => {
             to={`/notes/${id}/edit`}
             className="btn btn-secondary inline-flex items-center"
           >
-            <PencilIcon className="h-5 w-5 mr-2" />
-            Edit
+            <PencilIcon className="h-5 w-5 sm:mr-2" />
+            <span className="hidden sm:inline">Edit</span>
           </Link>
+          
           <button
             onClick={handleDelete}
             className="btn btn-danger inline-flex items-center"
           >
-            <TrashIcon className="h-5 w-5 mr-2" />
-            Delete
+            <TrashIcon className="h-5 w-5 sm:mr-2" />
+            <span className="hidden sm:inline">Delete</span>
           </button>
         </div>
       </div>

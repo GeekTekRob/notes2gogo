@@ -16,6 +16,20 @@
   *:focus-visible {
     @apply outline-none ring-2 ring-primary-500 ring-offset-2 dark:ring-offset-gray-900;
   }
+
+  /* Mobile touch optimization */
+  @media (hover: none) and (pointer: coarse) {
+    button, a, [role="button"] {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+  }
+
+  /* Prevent text size adjustment on mobile */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
 }
 
 @layer components {
